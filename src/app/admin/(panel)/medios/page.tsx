@@ -17,7 +17,14 @@ function size(bytes: number): string {
 
 export default async function MediaPage() {
   const rows = await db
-    .select({ id: media.id, filename: media.filename, mimeType: media.mimeType, size: media.size, createdAt: media.createdAt })
+    .select({
+      id: media.id,
+      filename: media.filename,
+      mimeType: media.mimeType,
+      size: media.size,
+      url: media.url,
+      createdAt: media.createdAt,
+    })
     .from(media)
     .orderBy(desc(media.createdAt))
     .limit(500);
@@ -44,7 +51,7 @@ export default async function MediaPage() {
       ) : (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
           {rows.map((m) => {
-            const url = `/api/media/${m.id}/${m.filename}`;
+            const url = m.url || `/api/media/${m.id}/${m.filename}`;
             return (
               <div key={m.id} className="card overflow-hidden">
                 <a href={url} target="_blank" rel="noopener noreferrer" className="block aspect-square bg-zinc-950">

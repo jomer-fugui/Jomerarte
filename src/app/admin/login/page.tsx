@@ -6,6 +6,8 @@ import { getSettings } from "@/lib/data";
 import { SiteLogo } from "@/components/Logo";
 import { SubmitButton } from "@/components/admin/SubmitButton";
 import { loginAction, setupAction } from "../actions";
+import { isDatabaseConfigured } from "@/db";
+import { DbMissing } from "@/components/DbMissing";
 
 export const metadata: Metadata = { title: "Acceso al panel", robots: { index: false, follow: false } };
 
@@ -16,6 +18,7 @@ const MESSAGES: Record<string, string> = {
 };
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
+  if (!isDatabaseConfigured()) return <DbMissing admin />;
   if (await isAdmin()) redirect("/admin");
   const [setup, settings, { error }] = await Promise.all([
     hasPassword().then((h) => !h),

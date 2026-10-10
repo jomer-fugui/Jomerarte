@@ -14,7 +14,9 @@ import {
   requireAdmin,
   setPassword,
 } from "@/lib/auth";
+import { del } from "@vercel/blob";
 import { DEFAULT_SETTINGS } from "@/lib/defaults";
+import { isBlobUrl } from "@/lib/storage";
 import { detectPlatform } from "@/lib/platforms";
 import { getPageDef, getSection, resolvePath } from "@/lib/sections";
 
@@ -240,6 +242,17 @@ export async function saveSettingsAction(formData: FormData) {
 export async function deleteMediaAction(formData: FormData) {
   await requireAdmin();
   const id = Number(str(formData, "id", 20));
-  if (id) await db.delete(media).where(eq(media.id, id));
+  if (id) {
+    const [row] = await db.select({ url: media.url }).from(media).where(eq(media.id, id)).limit(1);
+    // Si el archivo está en Vercel Blob, también se borra de ahí
+    if (row?.url && isBlobUrl(row.url) && process.env.BLOB_READ_WRITE_TOKEN) {
+      try {
+        await del(row.url);
+      } catch (err) {
+        console.error("[blob] no se pudo borrar:", err instanceof Error ? err.message : err);
+      }
+    }
+    await db.delete(media).where(eq(media.id, id));
+  }
   revalidatePath("/admin/medios");
 }
