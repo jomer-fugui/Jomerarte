@@ -64,12 +64,17 @@ export const settings = pgTable("settings", {
   value: text("value").notNull().default(""),
 });
 
-/** Archivos subidos (fotos, videos, audios, PDF) */
+/**
+ * Archivos subidos (fotos, videos, audios, PDF).
+ *  - Con Vercel Blob: se guarda solo la dirección pública en `url`.
+ *  - Sin Blob: el archivo se guarda dentro de la base en `data`.
+ */
 export const media = pgTable("media", {
   id: serial("id").primaryKey(),
   filename: text("filename").notNull(),
   mimeType: varchar("mime_type", { length: 120 }).notNull(),
   size: integer("size").notNull(),
-  data: bytea("data").notNull(),
+  url: text("url").notNull().default(""),
+  data: bytea("data"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

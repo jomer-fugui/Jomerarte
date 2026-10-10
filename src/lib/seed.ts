@@ -1,8 +1,13 @@
-import { db, pool } from "@/db";
+import { db, getPool } from "@/db";
 import { items, settings } from "@/db/schema";
 import { SEED_ITEMS } from "./seed-data";
 
-/** Crea las tablas si no existen (respaldo por si la base es nueva). */
+/**
+ * Crea / actualiza las tablas automáticamente (no hace falta correr comandos en Vercel).
+ * Sube SCHEMA_VERSION cuando cambie la estructura para que se vuelva a aplicar.
+ */
+const SCHEMA_VERSION = "2";
+
 const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS "items" (
   "id" serial PRIMARY KEY NOT NULL,
@@ -47,18 +52,54 @@ CREATE TABLE IF NOT EXISTS "media" (
   "filename" text NOT NULL,
   "mime_type" varchar(120) NOT NULL,
   "size" integer NOT NULL,
-  "data" bytea NOT NULL,
+  "url" text DEFAULT '' NOT NULL,
+  "data" bytea,
   "created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
+ALTER TABLE "media" ADD COLUMN IF NOT EXISTS "url" text DEFAULT '' NOT NULL;
+ALTER TABLE "media" ALTER COLUMN "data" DROP NOT NULL;
 `;
+
+async function currentSchemaVersion(): Promise<string | null> {
+  try {
+    const res = await getPool().query<{ value: string }>(
+      `SELECT "value" FROM "settings" WHERE "key" = '__schema_version'`,
+    );
+    return res.rows[0]?.value ?? null;
+  } catch {
+    return null; // la tabla todavía no existe
+  }
+}
+
+async function migrate(): Promise<void> {
+  if ((await currentSchemaVersion()) === SCHEMA_VERSION) return;
+  const client = await getPool().connect();
+  try {
+    await client.query("BEGIN");
+    // Evita que dos servidores creen las tablas al mismo tiempo (primer arranque en Vercel)
+    await client.query("SELECT pg_advisory_xact_lock(727274111)");
+    await client.query(SCHEMA_SQL);
+    await client.query(
+      `INSERT INTO "settings" ("key", "value") VALUES ('__schema_version', $1)
+       ON CONFLICT ("key") DO UPDATE SET "value" = EXCLUDED."value"`,
+      [SCHEMA_VERSION],
+    );
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK").catch(() => {});
+    throw err;
+  } finally {
+    client.release();
+  }
+}
 
 let seedPromise: Promise<void> | null = null;
 
-/** Se ejecuta una sola vez: asegura las tablas y carga contenido de ejemplo. */
+/** Se ejecuta una vez por servidor: asegura las tablas y carga el contenido de ejemplo (solo la primera vez). */
 export function ensureSeeded(): Promise<void> {
   if (!seedPromise) {
     seedPromise = run().catch((err) => {
-      console.error("[seed] error:", err);
+      console.error("[seed] error:", err instanceof Error ? err.message : err);
       seedPromise = null;
     });
   }
@@ -66,7 +107,7 @@ export function ensureSeeded(): Promise<void> {
 }
 
 async function run(): Promise<void> {
-  await pool.query(SCHEMA_SQL);
+  await migrate();
   await db.transaction(async (tx) => {
     const inserted = await tx
       .insert(settings)

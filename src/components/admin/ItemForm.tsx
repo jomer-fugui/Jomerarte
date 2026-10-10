@@ -276,7 +276,10 @@ export function ItemForm({
             </Field>
           )}
           {has("videoUrl") && (
-            <Field label={f.videoUrl} hint="Pega un enlace de YouTube o Vimeo, o sube un video/audio (máx. 50 MB).">
+            <Field
+              label={f.videoUrl}
+              hint="Pega un enlace de YouTube o Vimeo, o sube un video/audio. Para videos largos lo mejor es YouTube."
+            >
               <MediaInput
                 name="videoUrl"
                 value={v.videoUrl}

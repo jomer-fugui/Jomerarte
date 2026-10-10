@@ -1,13 +1,49 @@
 "use client";
 
-import { useId, useState, type ChangeEvent } from "react";
+import { useEffect, useId, useState, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, FileText, Link2, Loader2, Music, Play, Upload, X } from "lucide-react";
 import { cn, mediaKind, mediaThumb } from "@/lib/format";
+import type { UploadConfig } from "@/lib/storage";
 
 type UploadResult = { url: string; id: number; mimeType: string; filename: string };
 
-export function uploadFile(file: File, onProgress?: (p: number) => void): Promise<UploadResult> {
+const FALLBACK_CONFIG: UploadConfig = { mode: "db", maxBytes: 4 * 1024 * 1024, vercel: true };
+let configPromise: Promise<UploadConfig> | null = null;
+
+/** Pregunta al servidor cómo subir archivos (Vercel Blob o base de datos) y el tamaño máximo. */
+export function getUploadConfig(): Promise<UploadConfig> {
+  if (!configPromise) {
+    configPromise = fetch("/api/upload", { cache: "no-store" })
+      .then((r) => (r.ok ? (r.json() as Promise<UploadConfig>) : FALLBACK_CONFIG))
+      .catch(() => {
+        configPromise = null;
+        return FALLBACK_CONFIG;
+      });
+  }
+  return configPromise;
+}
+
+export function formatMB(bytes: number): string {
+  const mbs = bytes / 1024 / 1024;
+  return `${mbs >= 10 ? Math.round(mbs) : mbs.toFixed(1)} MB`;
+}
+
+function clientSafeName(name: string): string {
+  const ext = (name.match(/\.([a-z0-9]{2,5})$/i)?.[1] ?? "").toLowerCase();
+  const base =
+    name
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/\.[^.]+$/, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 60) || "archivo";
+  return ext ? `${base}.${ext}` : base;
+}
+
+function uploadToDatabase(file: File, onProgress?: (p: number) => void): Promise<UploadResult> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("POST", "/api/upload");
@@ -28,6 +64,45 @@ export function uploadFile(file: File, onProgress?: (p: number) => void): Promis
     fd.append("file", file);
     xhr.send(fd);
   });
+}
+
+/** Sube el archivo directo desde el navegador a Vercel Blob (sin pasar por el límite de 4,5 MB). */
+async function uploadToBlob(file: File, onProgress?: (p: number) => void): Promise<UploadResult> {
+  const { upload } = await import("@vercel/blob/client");
+  const contentType = file.type || undefined;
+  const blob = await upload(`jomerarte/${clientSafeName(file.name)}`, file, {
+    access: "public",
+    handleUploadUrl: "/api/blob",
+    contentType,
+    multipart: file.size > 50 * 1024 * 1024,
+    onUploadProgress: ({ percentage }) => onProgress?.(Math.round(percentage)),
+  });
+  const mimeType = blob.contentType || file.type || "application/octet-stream";
+  let id = 0;
+  try {
+    const res = await fetch("/api/upload", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: blob.url, filename: file.name, contentType: mimeType, size: file.size }),
+    });
+    const data = await res.json();
+    id = Number(data.id) || 0;
+  } catch {
+    // El archivo ya está subido; solo falló el registro en la biblioteca.
+  }
+  return { url: blob.url, id, mimeType, filename: file.name };
+}
+
+export async function uploadFile(file: File, onProgress?: (p: number) => void): Promise<UploadResult> {
+  const cfg = await getUploadConfig();
+  if (file.size > cfg.maxBytes) {
+    throw new Error(
+      cfg.mode === "db" && cfg.vercel
+        ? `“${file.name}” pesa ${formatMB(file.size)} y el máximo es ${formatMB(cfg.maxBytes)}. Activa Vercel Blob (ver README) para subir archivos grandes, o sube el video a YouTube y pega el enlace.`
+        : `“${file.name}” pesa ${formatMB(file.size)} y supera el máximo de ${formatMB(cfg.maxBytes)}.`,
+    );
+  }
+  return cfg.mode === "blob" ? uploadToBlob(file, onProgress) : uploadToDatabase(file, onProgress);
 }
 
 /** Reduce fotos grandes (de celular) antes de subirlas para que la página cargue rápido. */
@@ -303,7 +378,18 @@ export function MediaUploader() {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
+  const [limit, setLimit] = useState("");
   const inputId = useId();
+
+  useEffect(() => {
+    let alive = true;
+    getUploadConfig().then((c) => {
+      if (alive) setLimit(`máx. ${formatMB(c.maxBytes)} cada uno${c.mode === "blob" ? " · Vercel Blob" : ""}`);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   async function onFiles(e: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
@@ -336,7 +422,7 @@ export function MediaUploader() {
     >
       {busy ? <Loader2 className="h-8 w-8 animate-spin text-accent-light" /> : <Upload className="h-8 w-8 text-accent-light" />}
       <span className="font-semibold text-white">Subir archivos</span>
-      <span className="text-sm text-zinc-400">Fotos, videos, audios o PDF (máx. 50 MB cada uno)</span>
+      <span className="text-sm text-zinc-400">Fotos, videos, audios o PDF{limit ? ` (${limit})` : ""}</span>
       {msg && <span className="text-sm text-zinc-300">{msg}</span>}
       <input id={inputId} type="file" multiple accept="image/*,video/*,audio/*,application/pdf" className="hidden" onChange={onFiles} />
     </label>
