@@ -6,18 +6,21 @@ export const dynamic = "force-dynamic";
 
 const CHUNK = 2 * 1024 * 1024;
 
-/** Sirve los archivos subidos (con soporte de rangos para reproducir videos). */
+/** Sirve los archivos guardados en la base de datos (con soporte de rangos para reproducir videos). */
 export async function GET(req: Request, ctx: { params: Promise<{ path: string[] }> }) {
   const { path } = await ctx.params;
   const id = Number(path?.[0]);
   if (!Number.isInteger(id) || id <= 0) return new Response("Not found", { status: 404 });
 
   const [meta] = await db
-    .select({ mimeType: media.mimeType, size: media.size, filename: media.filename })
+    .select({ mimeType: media.mimeType, size: media.size, filename: media.filename, url: media.url })
     .from(media)
     .where(eq(media.id, id))
     .limit(1);
   if (!meta) return new Response("Not found", { status: 404 });
+
+  // Archivos guardados en Vercel Blob: redirigir a su dirección pública
+  if (meta.url) return Response.redirect(meta.url, 307);
 
   const headers: Record<string, string> = {
     "Content-Type": meta.mimeType,
@@ -49,15 +52,19 @@ export async function GET(req: Request, ctx: { params: Promise<{ path: string[] 
     const res = await db.execute(
       sql`select substring(${media.data} from ${start + 1}::int for ${len}::int) as chunk from ${media} where ${media.id} = ${id}`,
     );
-    const chunk = res.rows[0]?.chunk as Buffer | undefined;
+    const chunk = res.rows[0]?.chunk as Buffer | null | undefined;
     if (!chunk) return new Response("Not found", { status: 404 });
     return new Response(new Uint8Array(chunk), {
       status: 206,
-      headers: { ...headers, "Content-Range": `bytes ${start}-${start + chunk.length - 1}/${meta.size}`, "Content-Length": String(chunk.length) },
+      headers: {
+        ...headers,
+        "Content-Range": `bytes ${start}-${start + chunk.length - 1}/${meta.size}`,
+        "Content-Length": String(chunk.length),
+      },
     });
   }
 
   const [row] = await db.select({ data: media.data }).from(media).where(eq(media.id, id)).limit(1);
-  if (!row) return new Response("Not found", { status: 404 });
+  if (!row?.data) return new Response("Not found", { status: 404 });
   return new Response(new Uint8Array(row.data), { headers: { ...headers, "Content-Length": String(row.data.length) } });
 }
