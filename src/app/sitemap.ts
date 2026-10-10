@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 import { eq } from "drizzle-orm";
-import { db } from "@/db";
+import { db, isDatabaseConfigured } from "@/db";
 import { items } from "@/db/schema";
 import { getCustomPages, getPageTexts } from "@/lib/data";
 import { slugify } from "@/lib/format";
@@ -17,6 +17,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     if (def.key === "custom" || pages[def.key]?.visible === false) continue;
     entries.push({ url: base + def.path, changeFrequency: "weekly", priority: 0.8 });
   }
+  if (!isDatabaseConfigured()) return entries;
 
   try {
     const rows = await db
@@ -36,7 +37,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       if (c.slug) entries.push({ url: `${base}/${c.slug}`, lastModified: c.updatedAt, priority: 0.5 });
     }
   } catch (err) {
-    console.error("[sitemap]", err);
+    console.error("[sitemap]", err instanceof Error ? err.message : err);
   }
   return entries;
 }
