@@ -282,7 +282,7 @@ export default async function HomePage() {
           {frase && vis("frases") && (
             <figure className="card relative overflow-hidden p-8 sm:p-10 lg:col-span-2">
               <Quote className="absolute -top-4 -right-4 h-40 w-40 text-white/[0.04]" />
-              <p className="eyebrow">Frase de un Herje</p>
+              <p className="eyebrow">Frase de un Hereje</p>
               <blockquote className="mt-4 font-display text-3xl leading-tight font-bold text-white sm:text-4xl">
                 “{frase.content}”
               </blockquote>
