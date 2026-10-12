@@ -29,7 +29,7 @@ export default async function AdminHome() {
           <div>
             <p className="font-semibold text-white">Sube tu logo original</p>
             <p className="text-sm text-zinc-300">
-              Ahora se muestra una recreación del logo JOMER WORKS. Ve a Ajustes → Identidad y logo para subir tus imágenes
+              Ahora se muestra una recreación del logo JOMER WORRHIS. Ve a Ajustes → Identidad y logo para subir tus imágenes
               (versión transparente y versión con fondo blanco).
             </p>
           </div>
