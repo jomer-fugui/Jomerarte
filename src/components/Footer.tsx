@@ -13,6 +13,7 @@ export function Footer({ settings, nav }: { settings: Settings; nav: NavGroup[] 
     { url: settings.youtube, label: "YouTube", Icon: YoutubeIcon },
     { url: settings.tiktok, label: "TikTok", Icon: TiktokIcon },
     { url: settings.twitter, label: "X", Icon: XIcon },
+    { url: settings.telegram, label: "Telegram", Icon: TelegramIcon },
   ].filter((s) => s.url);
   const wa = waLink(settings.whatsapp, settings.whatsappMessage);
   const year = new Date().getFullYear();
@@ -100,10 +101,10 @@ export function Footer({ settings, nav }: { settings: Settings; nav: NavGroup[] 
       <div className="border-t border-white/5">
         <div className="container-x flex flex-col items-center justify-between gap-2 py-5 text-xs text-zinc-500 sm:flex-row">
           <span>
-            © {year} {settings.siteName} · Jomer Works. Todos los derechos reservados.
+            © {year} {settings.siteName} · Jomer Worrhis. Todos los derechos reservados.
           </span>
           <Link href="/admin" className="hover:text-zinc-300">
-            Administrar sitio
+            .
           </Link>
         </div>
       </div>
