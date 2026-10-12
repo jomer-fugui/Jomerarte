@@ -13,12 +13,12 @@ import { itemPath } from "@/components/views/SectionView";
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const [settings, pages, featured, frase, colmo, characters, inventos, admin] = await Promise.all([
+  const [settings, pages, featured, frase, pregunta, characters, inventos, admin] = await Promise.all([
     getSettings(),
     getPageTexts(),
     getFeatured(8),
     getRandomItem("frases"),
-    getRandomItem("colmos"),
+    getRandomItem("preguntas"),
     getItems("cielinfier-personajes", { limit: 4 }),
     getItems("inventos", { limit: 3 }),
     isAdmin(),
@@ -28,13 +28,13 @@ export default async function HomePage() {
     .filter(vis)
     .map((k) => getSection(k))
     .filter((s): s is SectionDef => Boolean(s));
-  const storeKids = ["tienda-electricidad", "tienda-mercadolibre", "tienda-virtuales", "tienda-otras"].filter(vis);
+  const storeKids = ["tienda-electricidad", "tienda-seguridad", "tienda-virtuales", "tienda-otras"].filter(vis);
   const explore = [
     "recomendacion",
     "truchadas",
     "frases",
     "poesias",
-    "colmos",
+    "preguntas",
     "mis-paginas",
     "canciones",
     "inventos",
@@ -44,7 +44,7 @@ export default async function HomePage() {
   ].filter(vis);
   const ciel = pages["cielinfier-personajes"];
   const storePlatforms = PLATFORMS.filter((p) =>
-    ["mercadolibre", "hotmart", "aliexpress", "amazon", "temu", "udemy"].includes(p.key),
+    ["seguridad", "hotmart", "aliexpress", "amazon", "temu", "udemy"].includes(p.key),
   );
 
   return (
@@ -96,7 +96,7 @@ export default async function HomePage() {
               <SiteLogo settings={settings} prefer="light" className="h-full w-full" idPrefix="hero" />
             </div>
             <span className="vertical-text absolute top-1/2 -right-6 hidden -translate-y-1/2 font-brand text-xs tracking-[0.5em] text-white/25 sm:block">
-              ジョメル・ワークス
+              誤解された天才
             </span>
           </div>
         </div>
@@ -276,8 +276,8 @@ export default async function HomePage() {
         </section>
       )}
 
-      {/* ─────────── FRASE + COLMO */}
-      {(frase || colmo) && (
+      {/* ─────────── FRASE + PREGUNTA */}
+      {(frase || pregunta) && (
         <section className="container-x grid gap-6 py-20 lg:grid-cols-3">
           {frase && vis("frases") && (
             <figure className="card relative overflow-hidden p-8 sm:p-10 lg:col-span-2">
@@ -294,19 +294,19 @@ export default async function HomePage() {
               </figcaption>
             </figure>
           )}
-          {colmo && vis("colmos") && (
+          {pregunta && vis("preguntas") && (
             <details className="card group p-8">
               <summary>
                 <Laugh className="h-8 w-8 text-accent-light" />
-                <p className="eyebrow mt-4">Colmo del día</p>
-                <p className="mt-3 font-display text-2xl leading-tight font-bold text-white">{colmo.title}</p>
+                <p className="eyebrow mt-4">Pregunta del día</p>
+                <p className="mt-3 font-display text-2xl leading-tight font-bold text-white">{pregunta.title}</p>
                 <span className="mt-4 inline-flex items-center gap-1 text-sm text-zinc-400 group-open:hidden">
                   Ver respuesta <ChevronDown className="h-4 w-4" />
                 </span>
               </summary>
-              <p className="mt-4 border-t border-white/10 pt-4 text-lg font-medium text-accent-light">{colmo.content}</p>
-              <Link href="/Frases/Colmos" className="mt-4 inline-flex text-sm font-semibold text-zinc-300 hover:text-white">
-                Más colmos →
+              <p className="mt-4 border-t border-white/10 pt-4 text-lg font-medium text-accent-light">{pregunta.content}</p>
+              <Link href="/Frases/Preguntas" className="mt-4 inline-flex text-sm font-semibold text-zinc-300 hover:text-white">
+                Más preguntas →
               </Link>
             </details>
           )}
