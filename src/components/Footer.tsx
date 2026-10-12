@@ -13,7 +13,6 @@ export function Footer({ settings, nav }: { settings: Settings; nav: NavGroup[] 
     { url: settings.youtube, label: "YouTube", Icon: YoutubeIcon },
     { url: settings.tiktok, label: "TikTok", Icon: TiktokIcon },
     { url: settings.twitter, label: "X", Icon: XIcon },
-    { url: settings.telegram, label: "Telegram", Icon: TelegramIcon },
   ].filter((s) => s.url);
   const wa = waLink(settings.whatsapp, settings.whatsappMessage);
   const year = new Date().getFullYear();
@@ -104,7 +103,7 @@ export function Footer({ settings, nav }: { settings: Settings; nav: NavGroup[] 
             © {year} {settings.siteName} · Jomer Worrhis. Todos los derechos reservados.
           </span>
           <Link href="/admin" className="hover:text-zinc-300">
-            .
+            o
           </Link>
         </div>
       </div>
