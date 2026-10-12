@@ -1,6 +1,6 @@
 # Jomerarte
 
-Sitio web de **Jomer Works**: servicios de electricidad, cámaras, páginas web y cursos; tienda vinculada a
+Sitio web de **Jomer Worrhis**: servicios de electricidad, cámaras, páginas web y cursos; tienda vinculada a
 Mercado Libre, Hotmart, AliExpress, Amazon y otras; recomendaciones, truchadas, frases, poesías, canciones,
 CielInfier, inventos, listas de precios y donaciones.
 
