@@ -4,7 +4,7 @@ import type { Settings } from "@/lib/defaults";
 import type { NavGroup } from "@/lib/nav";
 import { waLink } from "@/lib/format";
 import { SiteLogo } from "./Logo";
-import { FacebookIcon, InstagramIcon, TiktokIcon, XIcon, YoutubeIcon } from "./icons";
+import { FacebookIcon, InstagramIcon, TiktokIcon, XIcon, YoutubeIcon, TelegramIcon } from "./icons";
 
 export function Footer({ settings, nav }: { settings: Settings; nav: NavGroup[] }) {
   const socials = [
@@ -13,6 +13,7 @@ export function Footer({ settings, nav }: { settings: Settings; nav: NavGroup[] 
     { url: settings.youtube, label: "YouTube", Icon: YoutubeIcon },
     { url: settings.tiktok, label: "TikTok", Icon: TiktokIcon },
     { url: settings.twitter, label: "X", Icon: XIcon },
+    { url: settings.telegram, label: "Telegram", Icon: TelegramIcon },
   ].filter((s) => s.url);
   const wa = waLink(settings.whatsapp, settings.whatsappMessage);
   const year = new Date().getFullYear();

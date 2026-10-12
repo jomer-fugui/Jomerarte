@@ -120,3 +120,11 @@ export function XIcon({ className }: BrandProps) {
     </svg>
   );
 }
+
+export function TelegramIcon({ className }: BrandProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      <path d="M21.5 4.5 2.5 12.5l7 1 1.5 7 3.5-4.5L21.5 4.5z" />
+    </svg>
+  );
+}

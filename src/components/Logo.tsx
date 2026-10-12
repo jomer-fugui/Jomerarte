@@ -1,12 +1,12 @@
 import type { Settings } from "@/lib/defaults";
 import { cn } from "@/lib/format";
 
-/** Recreación en SVG del logo “JOMER WORKS”. Puedes reemplazarlo subiendo tu logo en /admin/ajustes */
+/** Recreación en SVG del logo “JOMER WORRHIS”. Puedes reemplazarlo subiendo tu logo en /admin/ajustes */
 export function LogoMark({ className, idPrefix = "jw" }: { className?: string; idPrefix?: string }) {
   const top = `${idPrefix}-top`;
   const bottom = `${idPrefix}-bottom`;
   return (
-    <svg viewBox="0 0 240 240" className={className} role="img" aria-label="Jomer Works">
+    <svg viewBox="0 0 240 240" className={className} role="img" aria-label="Jomer Worrhis">
       <defs>
         <path id={top} d="M 40 122 A 80 80 0 0 1 200 122" />
         <path id={bottom} d="M 15 122 A 105 105 0 0 0 225 122" />
@@ -41,7 +41,7 @@ export function LogoMark({ className, idPrefix = "jw" }: { className?: string; i
         </text>
         <text textAnchor="middle">
           <textPath href={`#${bottom}`} startOffset="50%">
-            WORRHIS
+            WORKS
           </textPath>
         </text>
       </g>
