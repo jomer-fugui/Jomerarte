@@ -1,20 +1,20 @@
 import type { ReactNode } from "react";
 import { MessageCircle } from "lucide-react";
-import { Header } from "@/components/Header";
-import { Footer } from "@/components/Footer";
-import { getCustomPages, getPageTexts, getSettings } from "@/lib/data";
-import { buildNav } from "@/lib/nav";
-import { waLink } from "@/lib/format";
 import { isDatabaseConfigured } from "@/db";
 import { DbMissing } from "@/components/DbMissing";
+import { Footer } from "@/components/Footer";
+import { Header } from "@/components/Header";
+import { getCustomSections, getPageTexts, getSettings } from "@/lib/data";
+import { waLink } from "@/lib/format";
+import { buildNav } from "@/lib/nav";
 
 export default async function SiteLayout({ children }: { children: ReactNode }) {
   if (!isDatabaseConfigured()) return <DbMissing />;
 
-  const [settings, pages, custom] = await Promise.all([getSettings(), getPageTexts(), getCustomPages()]);
+  const [settings, pages, customs] = await Promise.all([getSettings(), getPageTexts(), getCustomSections()]);
   const nav = buildNav(
     pages,
-    custom.map((c) => ({ slug: c.slug, title: c.title })),
+    customs.filter((c) => c.visible),
   );
   const wa = waLink(settings.whatsapp, settings.whatsappMessage);
 

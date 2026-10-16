@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { ArrowRight, ChevronDown, Heart, Laugh, Quote } from "lucide-react";
+import { ArrowRight, ChevronDown, CircleHelp, Heart, Quote } from "lucide-react";
 import { isAdmin } from "@/lib/auth";
-import { getFeatured, getItems, getPageTexts, getRandomItem, getSettings } from "@/lib/data";
+import { getCustomSections, getFeatured, getItems, getPageTexts, getRandomItem, getSettings } from "@/lib/data";
 import { excerpt } from "@/lib/format";
+import { groupEntries } from "@/lib/nav";
 import { PLATFORMS } from "@/lib/platforms";
-import { SECTIONS, getPageDef, getSection, type SectionDef } from "@/lib/sections";
+import { SECTIONS, getPageDef, type IconName, type SectionDef } from "@/lib/sections";
 import { SiteLogo } from "@/components/Logo";
 import { Icon } from "@/components/icons";
 import { AdminFab, ContactButton, ItemImage, PlatformBadge, RichText, SectionHeading } from "@/components/ui";
@@ -12,39 +13,56 @@ import { itemPath } from "@/components/views/SectionView";
 
 export const dynamic = "force-dynamic";
 
+const EXPLORE_KEYS = [
+  "recomendacion",
+  "truchadas",
+  "frases",
+  "poesias",
+  "colmos",
+  "mis-paginas",
+  "canciones",
+  "inventos",
+  "precios-servicios",
+  "precios-productos",
+  "donacion",
+];
+
 export default async function HomePage() {
-  const [settings, pages, featured, frase, pregunta, characters, inventos, admin] = await Promise.all([
+  const [settings, pages, featured, frase, pregunta, characters, inventos, admin, customs] = await Promise.all([
     getSettings(),
     getPageTexts(),
     getFeatured(8),
     getRandomItem("frases"),
-    getRandomItem("preguntas"),
+    getRandomItem("colmos"),
     getItems("cielinfier-personajes", { limit: 4 }),
     getItems("inventos", { limit: 3 }),
     isAdmin(),
+    getCustomSections(),
   ]);
+  const visibleCustoms = customs.filter((c) => c.visible);
   const vis = (k: string) => pages[k]?.visible !== false;
-  const services = ["electricista", "camaras", "web", "cursos"]
-    .filter(vis)
-    .map((k) => getSection(k))
-    .filter((s): s is SectionDef => Boolean(s));
-  const storeKids = ["tienda-electricidad", "tienda-seguridad", "tienda-virtuales", "tienda-otras"].filter(vis);
-  const explore = [
-    "recomendacion",
-    "truchadas",
-    "frases",
-    "poesias",
-    "preguntas",
-    "mis-paginas",
-    "canciones",
-    "inventos",
-    "precios-servicios",
-    "precios-productos",
-    "donacion",
-  ].filter(vis);
+  const services = groupEntries("servicios", pages, visibleCustoms);
+  const storeLinks = groupEntries("tienda", pages, visibleCustoms);
+
+  const explore: { key: string; href: string; label: string; icon: IconName }[] = [];
+  for (const k of EXPLORE_KEYS) {
+    const def = getPageDef(k);
+    if (def && vis(k)) explore.push({ key: k, href: def.path, label: pages[k]?.navLabel ?? def.navLabel, icon: def.icon });
+  }
+  for (const c of visibleCustoms) {
+    if (c.group === "mas" || c.group === "frases" || c.group === "cielinfier") {
+      explore.push({ key: c.key, href: c.path, label: pages[c.key]?.navLabel ?? c.item.title, icon: c.icon });
+    }
+  }
+
+  const defs = new Map<string, SectionDef>();
+  for (const s of SECTIONS) defs.set(s.key, s);
+  for (const c of visibleCustoms) if (c.def) defs.set(c.key, c.def);
+
   const ciel = pages["cielinfier-personajes"];
+  const preguntasPath = getPageDef("colmos")?.path ?? "/Frases/Preguntas";
   const storePlatforms = PLATFORMS.filter((p) =>
-    ["seguridad", "hotmart", "aliexpress", "amazon", "temu", "udemy"].includes(p.key),
+    ["mercadolibre", "hotmart", "aliexpress", "amazon", "temu", "udemy"].includes(p.key),
   );
 
   return (
@@ -78,7 +96,7 @@ export default async function HomePage() {
             <div className="mt-10 flex flex-wrap gap-2">
               {services.map((s) => (
                 <Link key={s.key} href={s.path} className="chip hover:border-accent hover:text-white">
-                  <Icon name={s.icon} className="h-3.5 w-3.5 text-accent-light" /> {pages[s.key].navLabel}
+                  <Icon name={s.icon} className="h-3.5 w-3.5 text-accent-light" /> {s.navLabel}
                 </Link>
               ))}
               {vis("cielinfier-personajes") && (
@@ -96,7 +114,7 @@ export default async function HomePage() {
               <SiteLogo settings={settings} prefer="light" className="h-full w-full" idPrefix="hero" />
             </div>
             <span className="vertical-text absolute top-1/2 -right-6 hidden -translate-y-1/2 font-brand text-xs tracking-[0.5em] text-white/25 sm:block">
-              誤解された天才
+              JOMER · WORRHIS
             </span>
           </div>
         </div>
@@ -107,32 +125,29 @@ export default async function HomePage() {
         <section className="container-x py-20">
           <SectionHeading eyebrow="Servicios" title="¿En qué te puedo ayudar?" href="/Servicios" linkLabel="Todos los servicios" />
           <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {services.map((s) => {
-              const t = pages[s.key];
-              return (
-                <Link key={s.key} href={s.path} className="card card-hover group flex flex-col overflow-hidden">
-                  <div className="relative aspect-[4/3] overflow-hidden">
-                    <ItemImage
-                      src={t.imageUrl}
-                      alt={t.title}
-                      icon={s.icon}
-                      className="transition duration-700 group-hover:scale-105"
-                    />
-                    <div className="absolute inset-0 bg-linear-to-t from-zinc-950/90 to-transparent" />
-                    <span className="absolute bottom-3 left-3 grid h-11 w-11 place-items-center rounded-xl bg-accent text-white shadow-lg shadow-accent/30">
-                      <Icon name={s.icon} className="h-5 w-5" />
-                    </span>
-                  </div>
-                  <div className="flex flex-1 flex-col p-5">
-                    <h3 className="font-display text-xl leading-tight font-bold text-white">{t.title}</h3>
-                    <p className="mt-2 text-sm text-zinc-400">{excerpt(t.intro, 110)}</p>
-                    <span className="mt-auto inline-flex items-center gap-1 pt-4 text-sm font-semibold text-accent-light">
-                      Ver más <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
-                    </span>
-                  </div>
-                </Link>
-              );
-            })}
+            {services.map((s) => (
+              <Link key={s.key} href={s.path} className="card card-hover group flex flex-col overflow-hidden">
+                <div className="relative aspect-[4/3] overflow-hidden">
+                  <ItemImage
+                    src={s.image}
+                    alt={s.title}
+                    icon={s.icon}
+                    className="transition duration-700 group-hover:scale-105"
+                  />
+                  <div className="absolute inset-0 bg-linear-to-t from-zinc-950/90 to-transparent" />
+                  <span className="absolute bottom-3 left-3 grid h-11 w-11 place-items-center rounded-xl bg-accent text-white shadow-lg shadow-accent/30">
+                    <Icon name={s.icon} className="h-5 w-5" />
+                  </span>
+                </div>
+                <div className="flex flex-1 flex-col p-5">
+                  <h3 className="font-display text-xl leading-tight font-bold text-white">{s.title}</h3>
+                  <p className="mt-2 text-sm text-zinc-400">{excerpt(s.intro, 110)}</p>
+                  <span className="mt-auto inline-flex items-center gap-1 pt-4 text-sm font-semibold text-accent-light">
+                    Ver más <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
+                  </span>
+                </div>
+              </Link>
+            ))}
           </div>
         </section>
       )}
@@ -143,7 +158,7 @@ export default async function HomePage() {
           <SectionHeading eyebrow="Destacados" title="Lo más buscado" />
           <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {featured.map((it) => {
-              const sec = SECTIONS.find((s) => s.key === it.section);
+              const sec = defs.get(it.section);
               if (!sec || !vis(sec.key)) return null;
               const href = sec.detail ? itemPath(sec.path, it) : sec.path;
               return (
@@ -160,7 +175,7 @@ export default async function HomePage() {
                   </div>
                   <div className="flex flex-1 flex-col p-5">
                     <p className="text-[11px] font-semibold tracking-widest text-accent-light uppercase">
-                      {pages[sec.key].navLabel}
+                      {pages[sec.key]?.navLabel ?? sec.navLabel}
                     </p>
                     <h3 className="mt-1 font-display text-xl leading-tight font-bold text-white">{it.title}</h3>
                     {it.subtitle && <p className="mt-1 text-sm text-zinc-400">{excerpt(it.subtitle, 80)}</p>}
@@ -191,21 +206,17 @@ export default async function HomePage() {
                 ))}
               </div>
               <div className="mt-7 grid gap-2 sm:grid-cols-2">
-                {storeKids.map((k) => {
-                  const def = getPageDef(k);
-                  if (!def) return null;
-                  return (
-                    <Link
-                      key={k}
-                      href={def.path}
-                      className="group flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-zinc-200 transition hover:border-accent/60 hover:text-white"
-                    >
-                      <Icon name={def.icon} className="h-4 w-4 text-accent-light" />
-                      <span className="flex-1">{pages[k].navLabel}</span>
-                      <ArrowRight className="h-4 w-4 opacity-50 transition group-hover:translate-x-1" />
-                    </Link>
-                  );
-                })}
+                {storeLinks.map((e) => (
+                  <Link
+                    key={e.key}
+                    href={e.path}
+                    className="group flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-zinc-200 transition hover:border-accent/60 hover:text-white"
+                  >
+                    <Icon name={e.icon} className="h-4 w-4 text-accent-light" />
+                    <span className="flex-1">{e.navLabel}</span>
+                    <ArrowRight className="h-4 w-4 opacity-50 transition group-hover:translate-x-1" />
+                  </Link>
+                ))}
               </div>
             </div>
           </div>
@@ -294,10 +305,10 @@ export default async function HomePage() {
               </figcaption>
             </figure>
           )}
-          {pregunta && vis("preguntas") && (
+          {pregunta && vis("colmos") && (
             <details className="card group p-8">
               <summary>
-                <Laugh className="h-8 w-8 text-accent-light" />
+                <CircleHelp className="h-8 w-8 text-accent-light" />
                 <p className="eyebrow mt-4">Pregunta del día</p>
                 <p className="mt-3 font-display text-2xl leading-tight font-bold text-white">{pregunta.title}</p>
                 <span className="mt-4 inline-flex items-center gap-1 text-sm text-zinc-400 group-open:hidden">
@@ -305,7 +316,7 @@ export default async function HomePage() {
                 </span>
               </summary>
               <p className="mt-4 border-t border-white/10 pt-4 text-lg font-medium text-accent-light">{pregunta.content}</p>
-              <Link href="/Frases/Preguntas" className="mt-4 inline-flex text-sm font-semibold text-zinc-300 hover:text-white">
+              <Link href={preguntasPath} className="mt-4 inline-flex text-sm font-semibold text-zinc-300 hover:text-white">
                 Más preguntas →
               </Link>
             </details>
@@ -344,22 +355,14 @@ export default async function HomePage() {
       <section className="container-x pb-20">
         <SectionHeading eyebrow="Explora" title="Todo Jomerarte" />
         <div className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
-          {explore.map((k) => {
-            const def = getPageDef(k);
-            if (!def) return null;
-            return (
-              <Link
-                key={k}
-                href={def.path}
-                className="card card-hover group flex flex-col items-start gap-3 p-5"
-              >
-                <span className="grid h-11 w-11 place-items-center rounded-xl bg-accent/15 text-accent-light transition group-hover:bg-accent group-hover:text-white">
-                  <Icon name={def.icon} className="h-5 w-5" />
-                </span>
-                <span className="font-display text-lg leading-tight font-bold text-white">{pages[k].navLabel}</span>
-              </Link>
-            );
-          })}
+          {explore.map((e) => (
+            <Link key={e.key} href={e.href} className="card card-hover group flex flex-col items-start gap-3 p-5">
+              <span className="grid h-11 w-11 place-items-center rounded-xl bg-accent/15 text-accent-light transition group-hover:bg-accent group-hover:text-white">
+                <Icon name={e.icon} className="h-5 w-5" />
+              </span>
+              <span className="font-display text-lg leading-tight font-bold text-white">{e.label}</span>
+            </Link>
+          ))}
         </div>
       </section>
 
