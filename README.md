@@ -100,7 +100,7 @@ Abre `https://tu-sitio.vercel.app/admin` y entra con tu `ADMIN_PASSWORD` (si no 
 En Vercel → **Settings → Domains** agrega:
 
 - `jomerarte.com` y `www.jomerarte.com`
-- `frases.jomerarte.com` → abre directamente **Frases de un Herje** (`/Frases`, `/Colmos`, `/Poesias`)
+- `frases.jomerarte.com` → abre directamente **Frases de un Hereje** (`/Frases`, `/Preguntas`, `/Poesias`)
 - `cielinfier.jomerarte.com` → abre directamente **CielInfier** (`/`, `/historia`, `/proceso`)
 
 Luego crea en tu proveedor de dominio los registros DNS que Vercel te indique. El sitio detecta los subdominios solo.
@@ -130,3 +130,24 @@ npm run dev                   # abre http://localhost:3000
 | Olvidé la contraseña del panel | Cambia `ADMIN_PASSWORD` en Vercel y vuelve a desplegar. |
 | GitHub no deja subir los archivos | No subas `node_modules` ni `.next` (ver sección 1). |
 | La página tarda la primera vez | Neon “despierta” la base tras un rato sin uso; es normal que la primera visita demore 1 o 2 segundos. |
+
+---
+
+## 6. Crear páginas nuevas (desde el panel)
+
+En **/admin → Crear página nueva** (o con “+ Página nueva aquí” en cada sección del panel):
+
+1. Escribe el **nombre** (ej: *Emprendedores*).
+2. Elige **dónde ubicarla** en el menú: Servicios, Tienda, Recomendaciones, No recomendable, Frases, CielInfier o Más.
+   La dirección se arma sola: *Emprendedores* en Recomendaciones → `jomerarte.com/Recomendacion/Emprendedores`;
+   *Seguridad* en Tienda → `jomerarte.com/Tienda/Seguridad`.
+3. Elige el **tipo de página**: libre (texto, fotos y videos), recomendaciones, productos, servicios, no recomendable,
+   frases, poesías, preguntas, publicaciones con galería, avances, personajes, capítulos, canciones, enlaces,
+   lista de precios o medios de pago.
+4. Guarda y agrega su contenido. Cuando quieras puedes cambiar el nombre, el tipo, la ubicación, el ícono, el orden
+   o ocultarla, sin perder lo que cargaste.
+
+## 7. Redes sociales
+
+En **/admin → Ajustes → Redes sociales** puedes cargar Instagram, Facebook, YouTube, TikTok, X y **Telegram**
+(el enlace `https://t.me/usuario` o simplemente `@usuario`). Aparecen en el pie de página y en el menú del celular.
