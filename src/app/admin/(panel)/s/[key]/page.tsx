@@ -1,22 +1,36 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowDown, ArrowUp, ExternalLink, Eye, EyeOff, Pencil, Plus, Star, Trash2 } from "lucide-react";
-import { getItems, getPageTexts } from "@/lib/data";
+import {
+  ArrowDown,
+  ArrowUp,
+  ExternalLink,
+  Eye,
+  EyeOff,
+  LayoutList,
+  Pencil,
+  Plus,
+  Settings2,
+  Star,
+  Trash2,
+} from "lucide-react";
+import { getAnySection, getCustomSections, getItems, getPageTexts, type CustomSection } from "@/lib/data";
 import { cn, excerpt, mediaThumb } from "@/lib/format";
-import { getPageDef } from "@/lib/sections";
+import { getPageDef, groupLabel, type PageDef } from "@/lib/sections";
 import { ConfirmButton } from "@/components/client";
 import { Icon } from "@/components/icons";
 import { MediaInput } from "@/components/admin/MediaInput";
 import { SubmitButton } from "@/components/admin/SubmitButton";
-import { deleteItemAction, moveItemAction, savePageAction, toggleItemAction } from "../../../actions";
 import { itemPath } from "@/components/views/SectionView";
+import { deleteItemAction, moveItemAction, savePageAction, toggleItemAction } from "../../../actions";
 
 export const dynamic = "force-dynamic";
 
 const OK: Record<string, string> = {
-  created: "Elemento creado correctamente.",
+  created: "Guardado correctamente.",
   updated: "Cambios guardados.",
   page: "Textos de la página guardados.",
+  pageCreated: "¡Página creada! Ya aparece en el menú. Ahora agrega su contenido con el botón “Agregar”.",
+  pageUpdated: "Página guardada.",
 };
 
 export default async function AdminSectionPage({
@@ -27,13 +41,28 @@ export default async function AdminSectionPage({
   searchParams: Promise<{ ok?: string }>;
 }) {
   const [{ key }, { ok }] = await Promise.all([params, searchParams]);
-  const def = getPageDef(key);
-  if (!def) notFound();
-  const pages = await getPageTexts();
-  const text = pages[key];
+  const staticDef = getPageDef(key);
+  const found = staticDef ? null : await getAnySection(key);
+  if (!staticDef && !found) notFound();
+  const def: PageDef = staticDef ?? found!.section;
+  const custom = found?.custom;
+  const isCustomList = key === "custom";
+
+  const [pages, customs] = await Promise.all([
+    getPageTexts(),
+    isCustomList ? getCustomSections() : Promise.resolve<CustomSection[]>([]),
+  ]);
+  const text = pages[key] ?? { key, navLabel: def.navLabel, title: def.title, intro: def.intro, imageUrl: "", visible: true };
   const section = def.hub ? null : def;
   const list = section ? await getItems(key, { all: true }) : [];
-  const isCustom = key === "custom";
+  const infoById = new Map(customs.map((c) => [c.item.id, c] as const));
+  const viewHref = custom ? custom.path : isCustomList ? null : def.path;
+  const addHref = isCustomList ? "/admin/s/custom/nuevo" : `/admin/s/${key}/nuevo`;
+  const subtitle = isCustomList
+    ? "Crea páginas nuevas, elige su tipo y en qué sección del menú aparecen"
+    : custom
+      ? `${custom.path} · ${custom.type.label} · en ${groupLabel(custom.group)}`
+      : def.path;
 
   return (
     <div className="space-y-8">
@@ -47,22 +76,22 @@ export default async function AdminSectionPage({
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex items-center gap-3">
           <span className="grid h-12 w-12 place-items-center rounded-xl bg-accent/15 text-accent-light">
-            <Icon name={def.icon} className="h-6 w-6" />
+            <Icon name={custom?.icon ?? def.icon} className="h-6 w-6" />
           </span>
           <div>
             <h1 className="font-display text-3xl font-bold text-white uppercase">{text.navLabel}</h1>
-            <p className="text-sm text-zinc-500">{isCustom ? "Páginas con dirección propia" : def.path}</p>
+            <p className="text-sm text-zinc-500">{subtitle}</p>
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          {!isCustom && (
-            <Link href={def.path} target="_blank" className="btn-ghost">
+          {viewHref && (
+            <Link href={viewHref} target="_blank" className="btn-ghost">
               <ExternalLink className="h-4 w-4" /> Ver página
             </Link>
           )}
           {section && (
-            <Link href={`/admin/s/${key}/nuevo`} className="btn-primary">
-              <Plus className="h-4 w-4" /> Agregar {section.itemLabel}
+            <Link href={addHref} className="btn-primary">
+              <Plus className="h-4 w-4" /> {isCustomList ? "Crear página" : `Agregar ${section.itemLabel}`}
             </Link>
           )}
         </div>
@@ -72,21 +101,41 @@ export default async function AdminSectionPage({
         <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-4 text-sm text-emerald-200">{OK[ok]}</div>
       )}
 
+      {custom && (
+        <section className="card flex flex-wrap items-center justify-between gap-4 p-5">
+          <div>
+            <p className="font-display text-lg font-bold tracking-wide text-white uppercase">Configuración de la página</p>
+            <p className="text-sm text-zinc-400">
+              Tipo: <strong className="text-zinc-200">{custom.type.label}</strong> · Ubicación:{" "}
+              <strong className="text-zinc-200">{groupLabel(custom.group)}</strong> ·{" "}
+              {custom.visible ? "Publicada" : "Oculta"}
+            </p>
+          </div>
+          <Link href={`/admin/s/custom/${custom.item.id}`} className="btn-ghost">
+            <Settings2 className="h-4 w-4" /> Editar nombre, tipo, ubicación y textos
+          </Link>
+        </section>
+      )}
+
       {section && (
         <section className="card overflow-hidden">
           {list.length === 0 ? (
             <div className="p-10 text-center text-zinc-400">
-              Todavía no hay elementos.{" "}
-              <Link href={`/admin/s/${key}/nuevo`} className="font-semibold text-accent-light hover:underline">
-                Agrega el primero
+              Todavía no hay {isCustomList ? "páginas" : "elementos"}.{" "}
+              <Link href={addHref} className="font-semibold text-accent-light hover:underline">
+                {isCustomList ? "Crea la primera" : "Agrega el primero"}
               </Link>
               .
             </div>
           ) : (
             <ul className="divide-y divide-white/5">
               {list.map((it, i) => {
+                const info = isCustomList ? infoById.get(it.id) : undefined;
                 const thumb = it.imageUrl ? mediaThumb(it.imageUrl) : null;
-                const publicHref = isCustom ? `/${it.slug}` : section.detail ? itemPath(section.path, it) : section.path;
+                const publicHref = info ? info.path : section.detail ? itemPath(section.path, it) : section.path;
+                const meta = info
+                  ? `${info.type.label} · en ${groupLabel(info.group)} · ${info.path}`
+                  : [it.category, it.subtitle, it.price].filter(Boolean).join(" · ") || excerpt(it.content, 90);
                 return (
                   <li key={it.id} className={cn("flex items-center gap-3 p-3 sm:p-4", !it.published && "opacity-60")}>
                     <div className="flex flex-col">
@@ -94,7 +143,12 @@ export default async function AdminSectionPage({
                         <input type="hidden" name="id" value={it.id} />
                         <input type="hidden" name="section" value={key} />
                         <input type="hidden" name="dir" value="up" />
-                        <button type="submit" disabled={i === 0} className="rounded p-1 text-zinc-400 hover:bg-white/10 hover:text-white disabled:opacity-20" aria-label="Subir">
+                        <button
+                          type="submit"
+                          disabled={i === 0}
+                          className="rounded p-1 text-zinc-400 hover:bg-white/10 hover:text-white disabled:opacity-20"
+                          aria-label="Subir"
+                        >
                           <ArrowUp className="h-4 w-4" />
                         </button>
                       </form>
@@ -118,7 +172,7 @@ export default async function AdminSectionPage({
                         <img src={thumb} alt="" className="h-full w-full object-cover" />
                       ) : (
                         <div className="placeholder-art grid h-full w-full place-items-center">
-                          <Icon name={section.icon} className="h-5 w-5 text-white/40" />
+                          <Icon name={info?.icon ?? section.icon} className="h-5 w-5 text-white/40" />
                         </div>
                       )}
                     </div>
@@ -126,16 +180,29 @@ export default async function AdminSectionPage({
                       <p className="truncate font-semibold text-white hover:text-accent-light">
                         {it.title || excerpt(it.content, 90) || "(sin título)"}
                       </p>
-                      <p className="truncate text-xs text-zinc-500">
-                        {[it.category, it.subtitle, it.price, isCustom ? `/${it.slug}` : ""].filter(Boolean).join(" · ") ||
-                          excerpt(it.content, 90)}
-                      </p>
+                      <p className="truncate text-xs text-zinc-500">{meta}</p>
                       <div className="mt-1 flex gap-1.5">
-                        {!it.published && <span className="rounded bg-zinc-700 px-1.5 py-0.5 text-[10px] font-bold text-zinc-200 uppercase">Oculto</span>}
-                        {it.featured && <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-bold text-amber-300 uppercase">Destacado</span>}
+                        {!it.published && (
+                          <span className="rounded bg-zinc-700 px-1.5 py-0.5 text-[10px] font-bold text-zinc-200 uppercase">Oculto</span>
+                        )}
+                        {it.featured && (
+                          <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-bold text-amber-300 uppercase">
+                            Destacado
+                          </span>
+                        )}
                       </div>
                     </Link>
                     <div className="flex shrink-0 items-center gap-0.5">
+                      {info?.def && (
+                        <Link
+                          href={`/admin/s/${info.key}`}
+                          className="inline-flex items-center gap-1 rounded-lg px-2 py-2 text-xs font-semibold text-accent-light hover:bg-white/10 hover:text-white"
+                          title="Administrar el contenido de esta página"
+                        >
+                          <LayoutList className="h-4 w-4" />
+                          <span className="hidden md:inline">Contenido</span>
+                        </Link>
+                      )}
                       <form action={toggleItemAction}>
                         <input type="hidden" name="id" value={it.id} />
                         <input type="hidden" name="field" value="published" />
@@ -148,7 +215,7 @@ export default async function AdminSectionPage({
                           {it.published ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
                         </button>
                       </form>
-                      {!isCustom && (
+                      {!isCustomList && (
                         <form action={toggleItemAction} className="hidden sm:block">
                           <input type="hidden" name="id" value={it.id} />
                           <input type="hidden" name="field" value="featured" />
@@ -182,7 +249,11 @@ export default async function AdminSectionPage({
                       <form action={deleteItemAction}>
                         <input type="hidden" name="id" value={it.id} />
                         <ConfirmButton
-                          message="¿Seguro que quieres eliminar este elemento? No se puede deshacer."
+                          message={
+                            isCustomList
+                              ? "¿Eliminar esta página y todo su contenido? No se puede deshacer."
+                              : "¿Seguro que quieres eliminar este elemento? No se puede deshacer."
+                          }
                           className="rounded-lg p-2 text-zinc-400 hover:bg-red-500/20 hover:text-red-300"
                           title="Eliminar"
                         >
@@ -198,12 +269,20 @@ export default async function AdminSectionPage({
         </section>
       )}
 
-      {!isCustom && (
+      {isCustomList && list.length > 0 && (
+        <p className="text-sm text-zinc-500">
+          El orden de esta lista es el orden en que aparecen las páginas dentro de su sección del menú.
+        </p>
+      )}
+
+      {staticDef && !isCustomList && (
         <details className="card group p-6" open={!section}>
           <summary className="flex items-center justify-between">
             <span>
               <span className="block font-display text-lg font-bold tracking-wide text-white uppercase">Textos de la página</span>
-              <span className="text-sm text-zinc-500">Nombre en el menú, título, introducción, imagen de cabecera y visibilidad</span>
+              <span className="text-sm text-zinc-500">
+                Nombre en el menú, título, introducción, imagen de cabecera y visibilidad
+              </span>
             </span>
             <Pencil className="h-4 w-4 text-zinc-500" />
           </summary>
