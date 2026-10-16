@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { and, asc, desc, eq } from "drizzle-orm";
+import { del } from "@vercel/blob";
 import { db } from "@/db";
 import { items, media, pages, settings } from "@/db/schema";
 import {
@@ -14,11 +15,22 @@ import {
   requireAdmin,
   setPassword,
 } from "@/lib/auth";
-import { del } from "@vercel/blob";
+import { getAnySection } from "@/lib/data";
 import { DEFAULT_SETTINGS } from "@/lib/defaults";
-import { isBlobUrl } from "@/lib/storage";
 import { detectPlatform } from "@/lib/platforms";
-import { getPageDef, getSection, resolvePath } from "@/lib/sections";
+import {
+  cleanSlug,
+  customKey,
+  customPagePath,
+  getPageDef,
+  getPageType,
+  isGroupKey,
+  isIconName,
+  normalizePath,
+  resolvePath,
+  slugFromTitle,
+} from "@/lib/sections";
+import { isBlobUrl } from "@/lib/storage";
 
 export type FormState = { error?: string } | null;
 
@@ -29,6 +41,19 @@ function str(fd: FormData, key: string, max = 20000): string {
 
 function refresh() {
   revalidatePath("/", "layout");
+}
+
+function parseGallery(fd: FormData): string[] {
+  try {
+    const g: unknown = JSON.parse(str(fd, "gallery", 200000) || "[]");
+    if (!Array.isArray(g)) return [];
+    return g
+      .filter((x): x is string => typeof x === "string" && x.trim() !== "")
+      .map((x) => x.trim())
+      .slice(0, 100);
+  } catch {
+    return [];
+  }
 }
 
 /* ───────────── Acceso */
@@ -73,45 +98,15 @@ export async function changePasswordAction(formData: FormData) {
   redirect("/admin/ajustes?pw=ok#seguridad");
 }
 
-/* ───────────── Contenido */
+/* ───────────── Contenido de las secciones (fijas o páginas nuevas) */
 export async function saveItemAction(_prev: FormState, formData: FormData): Promise<FormState> {
   await requireAdmin();
-  const section = getSection(str(formData, "section", 64));
-  if (!section) return { error: "Sección inválida." };
+  const key = str(formData, "section", 64);
+  if (key === "custom") return { error: "Las páginas se crean y editan desde “Páginas personalizadas”." };
+  const found = await getAnySection(key);
+  if (!found) return { error: "Sección inválida." };
+  const section = found.section;
   const id = Number(str(formData, "id", 20)) || 0;
-
-  let gallery: string[] = [];
-  try {
-    const g: unknown = JSON.parse(str(formData, "gallery", 200000) || "[]");
-    if (Array.isArray(g)) {
-      gallery = g
-        .filter((x): x is string => typeof x === "string" && x.trim() !== "")
-        .map((x) => x.trim())
-        .slice(0, 100);
-    }
-  } catch {
-    gallery = [];
-  }
-
-  let slug = "";
-  if (section.key === "custom") {
-    slug = str(formData, "slug", 120)
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^A-Za-z0-9-]+/g, "-")
-      .replace(/^-+|-+$/g, "");
-    if (!slug) return { error: "La dirección es obligatoria (ej: Contacto)." };
-    if (resolvePath("/" + slug) || ["admin", "api", "_next", "images"].includes(slug.toLowerCase())) {
-      return { error: `La dirección “/${slug}” ya la usa otra sección del sitio. Elige otra.` };
-    }
-    const existing = await db
-      .select({ id: items.id, slug: items.slug })
-      .from(items)
-      .where(eq(items.section, "custom"));
-    if (existing.some((e) => e.id !== id && e.slug.toLowerCase() === slug.toLowerCase())) {
-      return { error: `Ya existe otra página con la dirección “/${slug}”.` };
-    }
-  }
 
   const linkUrl = str(formData, "linkUrl", 2000);
   let platform = str(formData, "platform", 40);
@@ -123,7 +118,7 @@ export async function saveItemAction(_prev: FormState, formData: FormData): Prom
     content: str(formData, "content", 100000),
     category: str(formData, "category", 160),
     imageUrl: str(formData, "imageUrl", 2000),
-    gallery,
+    gallery: parseGallery(formData),
     videoUrl: str(formData, "videoUrl", 2000),
     linkUrl,
     linkLabel: str(formData, "linkLabel", 200),
@@ -132,7 +127,6 @@ export async function saveItemAction(_prev: FormState, formData: FormData): Prom
     unit: str(formData, "unit", 200),
     rating: Math.max(0, Math.min(5, Number(str(formData, "rating", 2)) || 0)),
     location: str(formData, "location", 500),
-    slug,
     featured: formData.get("featured") === "on",
     published: formData.get("published") === "on",
     updatedAt: new Date(),
@@ -158,10 +152,89 @@ export async function saveItemAction(_prev: FormState, formData: FormData): Prom
   redirect(`/admin/s/${section.key}?ok=${id ? "updated" : "created"}`);
 }
 
+/* ───────────── Páginas personalizadas (tipo + ubicación en el menú) */
+const RESERVED = new Set(["admin", "api", "_next", "images", "favicon.ico", "icon.svg", "robots.txt", "sitemap.xml"]);
+
+export async function saveCustomPageAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  await requireAdmin();
+  const id = Number(str(formData, "id", 20)) || 0;
+  const title = str(formData, "title", 300);
+  if (!title) return { error: "Escribe el nombre de la página." };
+
+  const pageType = getPageType(str(formData, "pageType", 32)).key;
+  const groupRaw = str(formData, "menuGroup", 32);
+  const menuGroup = isGroupKey(groupRaw) ? groupRaw : "mas";
+  const slug = cleanSlug(str(formData, "slug", 120)) || slugFromTitle(title);
+  if (!slug || !/[A-Za-z]/.test(slug)) {
+    return { error: "La dirección debe tener al menos una letra (por ejemplo: Emprendedores)." };
+  }
+
+  const path = customPagePath(menuGroup, slug);
+  if (resolvePath(path) || (menuGroup === "mas" && RESERVED.has(slug.toLowerCase()))) {
+    return { error: `La dirección “${path}” ya la usa otra sección del sitio. Elige otro nombre o dirección.` };
+  }
+  const others = await db
+    .select({ id: items.id, slug: items.slug, menuGroup: items.menuGroup })
+    .from(items)
+    .where(eq(items.section, "custom"));
+  if (others.some((o) => o.id !== id && normalizePath(customPagePath(o.menuGroup || "mas", o.slug)) === normalizePath(path))) {
+    return { error: `Ya existe otra página con la dirección “${path}”.` };
+  }
+
+  const iconRaw = str(formData, "icon", 32);
+  const values = {
+    title,
+    slug,
+    pageType,
+    menuGroup,
+    icon: isIconName(iconRaw) ? iconRaw : "",
+    subtitle: str(formData, "subtitle", 2000),
+    content: str(formData, "content", 100000),
+    imageUrl: str(formData, "imageUrl", 2000),
+    gallery: parseGallery(formData),
+    videoUrl: str(formData, "videoUrl", 2000),
+    linkUrl: str(formData, "linkUrl", 2000),
+    linkLabel: str(formData, "linkLabel", 200),
+    published: formData.get("published") === "on",
+    updatedAt: new Date(),
+  };
+
+  let savedId = id;
+  if (id) {
+    const res = await db
+      .update(items)
+      .set(values)
+      .where(and(eq(items.id, id), eq(items.section, "custom")))
+      .returning({ id: items.id });
+    if (res.length === 0) return { error: "Esta página ya no existe." };
+  } else {
+    // Las páginas nuevas se agregan al final del menú de su sección
+    const [last] = await db
+      .select({ sortOrder: items.sortOrder })
+      .from(items)
+      .where(eq(items.section, "custom"))
+      .orderBy(desc(items.sortOrder))
+      .limit(1);
+    const [row] = await db
+      .insert(items)
+      .values({ ...values, section: "custom", sortOrder: (last?.sortOrder ?? -1) + 1 })
+      .returning({ id: items.id });
+    savedId = row.id;
+  }
+  refresh();
+  if (pageType === "page") redirect(`/admin/s/custom?ok=${id ? "updated" : "created"}`);
+  redirect(`/admin/s/${customKey(savedId)}?ok=${id ? "pageUpdated" : "pageCreated"}`);
+}
+
 export async function deleteItemAction(formData: FormData) {
   await requireAdmin();
   const id = Number(str(formData, "id", 20));
-  if (id) await db.delete(items).where(eq(items.id, id));
+  if (id) {
+    const [row] = await db.select({ section: items.section }).from(items).where(eq(items.id, id)).limit(1);
+    // Si es una página personalizada, también se borra todo su contenido
+    if (row?.section === "custom") await db.delete(items).where(eq(items.section, customKey(id)));
+    await db.delete(items).where(eq(items.id, id));
+  }
   refresh();
   const to = str(formData, "redirectTo", 200);
   if (to.startsWith("/admin")) redirect(to);
@@ -202,7 +275,7 @@ export async function moveItemAction(formData: FormData) {
   refresh();
 }
 
-/* ───────────── Textos de páginas */
+/* ───────────── Textos de las páginas fijas */
 export async function savePageAction(formData: FormData) {
   await requireAdmin();
   const key = str(formData, "key", 64);
