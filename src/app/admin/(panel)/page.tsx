@@ -1,13 +1,18 @@
 import Link from "next/link";
-import { EyeOff, Image as ImageIcon, Settings, Sparkles, Upload } from "lucide-react";
-import { getPageTexts, getSectionCounts, getSettings } from "@/lib/data";
+import { EyeOff, Image as ImageIcon, Plus, Settings, Sparkles, Upload } from "lucide-react";
+import { getCustomSections, getPageTexts, getSectionCounts, getSettings } from "@/lib/data";
 import { ALL_PAGE_DEFS, GROUPS } from "@/lib/sections";
 import { Icon } from "@/components/icons";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminHome() {
-  const [counts, pages, settings] = await Promise.all([getSectionCounts(), getPageTexts(), getSettings()]);
+  const [counts, pages, settings, customs] = await Promise.all([
+    getSectionCounts(),
+    getPageTexts(),
+    getSettings(),
+    getCustomSections(),
+  ]);
   const noLogo = !settings.logoUrl && !settings.logoLightUrl;
 
   return (
@@ -15,8 +20,8 @@ export default async function AdminHome() {
       <div>
         <h1 className="font-display text-4xl font-bold text-white uppercase">Panel de {settings.siteName}</h1>
         <p className="mt-2 max-w-3xl text-zinc-400">
-          Desde aquí editas todo tu sitio: agrega, edita, ordena, oculta o elimina contenido de cada sección, cambia los
-          textos de cada página, tu logo, tus datos de contacto y más.
+          Desde aquí editas todo tu sitio: agrega, edita, ordena, oculta o elimina contenido de cada sección, crea páginas
+          nuevas donde quieras, cambia los textos de cada página, tu logo, tus datos de contacto y más.
         </p>
       </div>
 
@@ -29,8 +34,8 @@ export default async function AdminHome() {
           <div>
             <p className="font-semibold text-white">Sube tu logo original</p>
             <p className="text-sm text-zinc-300">
-              Ahora se muestra una recreación del logo JOMER WORRHIS. Ve a Ajustes → Identidad y logo para subir tus imágenes
-              (versión transparente y versión con fondo blanco).
+              Ahora se muestra una recreación del logo JOMER WORRHIS. Ve a Ajustes → Identidad y logo para subir tus
+              imágenes (versión transparente y versión con fondo blanco).
             </p>
           </div>
         </Link>
@@ -55,18 +60,27 @@ export default async function AdminHome() {
           <Sparkles className="h-7 w-7 text-accent-light" />
           <div>
             <p className="font-semibold text-white">Crear página nueva</p>
-            <p className="text-xs text-zinc-400">Con la dirección que quieras</p>
+            <p className="text-xs text-zinc-400">Elige su tipo y en qué sección del menú va</p>
           </div>
         </Link>
       </div>
 
       {GROUPS.map((g) => {
         const defs = ALL_PAGE_DEFS.filter((d) => d.group === g.key);
+        const extra = customs.filter((c) => c.group === g.key);
         return (
           <section key={g.key}>
-            <h2 className="mb-3 flex items-center gap-2 font-display text-xl font-bold tracking-wide text-white uppercase">
-              <Icon name={g.icon} className="h-5 w-5 text-accent-light" /> {g.label}
-            </h2>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <h2 className="flex items-center gap-2 font-display text-xl font-bold tracking-wide text-white uppercase">
+                <Icon name={g.icon} className="h-5 w-5 text-accent-light" /> {g.label}
+              </h2>
+              <Link
+                href={`/admin/s/custom/nuevo?grupo=${g.key}`}
+                className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-accent-light hover:bg-white/5 hover:text-white"
+              >
+                <Plus className="h-3.5 w-3.5" /> Página nueva aquí
+              </Link>
+            </div>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {defs.map((d) => {
                 const hidden = pages[d.key]?.visible === false;
@@ -78,7 +92,7 @@ export default async function AdminHome() {
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-semibold text-white">{pages[d.key]?.navLabel ?? d.navLabel}</span>
                       <span className="block truncate text-xs text-zinc-500">
-                        {d.key === "custom" ? "jomerarte.com/…" : d.path} ·{" "}
+                        {d.key === "custom" ? "Crear y ordenar páginas" : d.path} ·{" "}
                         {d.hub ? "Página principal" : `${counts[d.key] ?? 0} elementos`}
                       </span>
                     </span>
@@ -90,6 +104,28 @@ export default async function AdminHome() {
                   </Link>
                 );
               })}
+              {extra.map((c) => (
+                <Link
+                  key={c.key}
+                  href={c.def ? `/admin/s/${c.key}` : `/admin/s/custom/${c.item.id}`}
+                  className="card card-hover flex items-center gap-3 border-dashed p-4"
+                >
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-white/10 text-accent-light">
+                    <Icon name={c.icon} className="h-5 w-5" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-semibold text-white">{c.item.title || c.item.slug}</span>
+                    <span className="block truncate text-xs text-zinc-500">
+                      {c.path} · {c.def ? `${counts[c.key] ?? 0} elementos` : c.type.label}
+                    </span>
+                  </span>
+                  {!c.visible && (
+                    <span title="Oculta" className="text-zinc-500">
+                      <EyeOff className="h-4 w-4" />
+                    </span>
+                  )}
+                </Link>
+              ))}
             </div>
           </section>
         );
@@ -98,6 +134,10 @@ export default async function AdminHome() {
       <section className="card space-y-3 p-6 text-sm text-zinc-400">
         <h2 className="font-display text-lg font-bold tracking-wide text-white uppercase">Consejos</h2>
         <ul className="list-disc space-y-1.5 pl-5">
+          <li>
+            Para crear una página dentro de una sección (por ejemplo “Emprendedores” en Recomendaciones), usa “Página nueva
+            aquí” o “Crear página nueva” y elige su tipo: recomendaciones, productos, servicios, frases, galería, etc.
+          </li>
           <li>Para videos largos, súbelos a YouTube y pega el enlace: se verán integrados en tu página.</li>
           <li>Las fotos grandes se reducen automáticamente al subirlas para que la página cargue rápido.</li>
           <li>
