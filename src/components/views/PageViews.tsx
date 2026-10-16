@@ -1,9 +1,19 @@
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, MapPin } from "lucide-react";
-import { getItems, type Item, type PageText } from "@/lib/data";
+import { getItems, type CustomSection, type Item, type PageText } from "@/lib/data";
 import type { Settings } from "@/lib/defaults";
-import { GROUPS, HUBS, getSection, subnavFor, type HubDef, type SectionDef } from "@/lib/sections";
 import { excerpt } from "@/lib/format";
+import { buildTabs, groupEntries, type Tab } from "@/lib/nav";
+import {
+  GROUPS,
+  HUBS,
+  getPageDef,
+  groupTabKeys,
+  subnavFor,
+  type GroupKey,
+  type HubDef,
+  type SectionDef,
+} from "@/lib/sections";
 import { Gallery } from "../client";
 import { MediaPlayer } from "../media";
 import {
@@ -25,44 +35,79 @@ import { SectionBody, itemPath } from "./SectionView";
 
 export { itemPath };
 
-function eyebrowFor(section: SectionDef, pages: Record<string, PageText>): string {
-  const hub = HUBS.find((h) => h.children.includes(section.key));
+type Crumb = { href: string; label: string };
+
+function eyebrowFor(group: GroupKey, pages: Record<string, PageText>): string {
+  const hub = HUBS.find((h) => h.group === group);
   if (hub) return pages[hub.key]?.navLabel ?? hub.navLabel;
-  if (section.group === "mas") return "Jomerarte";
-  return GROUPS.find((g) => g.key === section.group)?.label ?? "";
+  if (group === "mas") return "Jomerarte";
+  return GROUPS.find((g) => g.key === group)?.label ?? "";
 }
 
-function crumbsFor(section: SectionDef, pages: Record<string, PageText>) {
-  const crumbs = [{ href: "/", label: "Inicio" }];
-  const hub = HUBS.find((h) => h.children.includes(section.key));
-  if (hub) crumbs.push({ href: hub.path, label: pages[hub.key]?.navLabel ?? hub.navLabel });
-  const tabs = subnavFor(section.key);
-  if (!hub && tabs && tabs[0] !== section.key) {
-    const first = getSection(tabs[0]);
-    if (first) crumbs.push({ href: first.path, label: pages[first.key]?.navLabel ?? first.navLabel });
+function crumbsFor(target: { key: string; group: GroupKey }, pages: Record<string, PageText>): Crumb[] {
+  const crumbs: Crumb[] = [{ href: "/", label: "Inicio" }];
+  const hub = HUBS.find((h) => h.group === target.group);
+  if (hub) {
+    if (hub.key !== target.key) crumbs.push({ href: hub.path, label: pages[hub.key]?.navLabel ?? hub.navLabel });
+    return crumbs;
+  }
+  const lead = (subnavFor(target.key) ?? groupTabKeys(target.group))?.[0];
+  if (lead && lead !== target.key) {
+    const def = getPageDef(lead);
+    if (def) crumbs.push({ href: def.path, label: pages[lead]?.navLabel ?? def.navLabel });
   }
   return crumbs;
 }
 
-/* ───────────────────────── Página de sección */
+function textFor(section: SectionDef, pages: Record<string, PageText>): PageText {
+  return (
+    pages[section.key] ?? {
+      key: section.key,
+      navLabel: section.navLabel,
+      title: section.title,
+      intro: section.intro,
+      imageUrl: section.image ?? "",
+      visible: true,
+    }
+  );
+}
+
+/* ───────────────────────── Página de sección (fija o creada desde el panel) */
 export function SectionPage({
   section,
   text,
   items,
   settings,
   pages,
+  tabs,
   admin,
   category,
+  extra,
 }: {
   section: SectionDef;
   text: PageText;
   items: Item[];
   settings: Settings;
   pages: Record<string, PageText>;
+  tabs: Tab[];
   admin: boolean;
   category?: string;
+  /** Página personalizada: texto, video, galería y botón extra */
+  extra?: Item;
 }) {
-  const tabs = subnavFor(section.key);
+  const hasExtra = Boolean(extra && (extra.content || extra.videoUrl || extra.gallery.length > 0));
+  const actions =
+    section.layout === "services" || extra?.linkUrl ? (
+      <>
+        {section.layout === "services" && <ContactButton settings={settings} topic={text.title} label="Pedir presupuesto" />}
+        {extra?.linkUrl && (
+          <SmartLink href={extra.linkUrl} className="btn-ghost">
+            {extra.linkLabel || "Ver más"}
+          </SmartLink>
+        )}
+      </>
+    ) : null;
+
   return (
     <>
       <PageHero
@@ -70,16 +115,21 @@ export function SectionPage({
         intro={text.intro}
         image={text.imageUrl}
         icon={section.icon}
-        eyebrow={eyebrowFor(section, pages)}
+        eyebrow={eyebrowFor(section.group, pages)}
         crumbs={crumbsFor(section, pages)}
         tone={section.layout === "bad" ? "danger" : "default"}
       >
-        {section.layout === "services" && (
-          <ContactButton settings={settings} topic={text.title} label="Pedir presupuesto" />
-        )}
+        {actions}
       </PageHero>
-      {tabs && <SubNav keys={tabs} current={section.key} pages={pages} />}
+      <SubNav tabs={tabs} current={section.key} />
       <div className="container-x py-12">
+        {hasExtra && extra && (
+          <div className="mb-12 space-y-8">
+            <RichText text={extra.content} className="max-w-3xl text-lg text-zinc-300" />
+            {extra.videoUrl && <MediaPlayer url={extra.videoUrl} title={text.title} className="max-w-4xl" />}
+            {extra.gallery.length > 0 && <Gallery urls={extra.gallery} title={text.title} />}
+          </div>
+        )}
         <SectionBody section={section} items={items} settings={settings} category={category} admin={admin} />
       </div>
       {admin && <AdminFab href={`/admin/s/${section.key}`} />}
@@ -87,23 +137,26 @@ export function SectionPage({
   );
 }
 
-/* ───────────────────────── Páginas “hub” (Servicios, Tienda, Recomendaciones, Truchadas) */
+/* ───────────────────────── Páginas principales (Servicios, Tienda, Recomendaciones, Truchadas) */
 export async function HubView({
   hub,
   pages,
   settings,
   admin,
+  customs,
 }: {
   hub: HubDef;
   pages: Record<string, PageText>;
   settings: Settings;
   admin: boolean;
+  customs: CustomSection[];
 }) {
   const text = pages[hub.key];
-  const children = hub.children
-    .map((k) => getSection(k))
-    .filter((s): s is SectionDef => Boolean(s) && pages[s!.key]?.visible !== false);
-  const previews = await Promise.all(children.map((s) => getItems(s.key, { limit: 4 })));
+  const entries = groupEntries(hub.group, pages, customs);
+  const previews = await Promise.all(
+    entries.map((e) => (e.def ? getItems(e.def.key, { limit: 4 }) : Promise.resolve<Item[]>([]))),
+  );
+  const tabs = buildTabs(hub.key, hub.group, pages, customs);
   const danger = hub.key === "truchadas";
 
   const stores = [
@@ -113,6 +166,26 @@ export async function HubView({
     { url: settings.storeAmazon, label: "Mi tienda en Amazon", bg: "#FF9900", fg: "#111" },
     { url: settings.storeOther, label: settings.storeOtherLabel || "Otra tienda", bg: "#3f3f46", fg: "#fff" },
   ].filter((s) => s.url);
+
+  const actions =
+    hub.key === "servicios" ? (
+      <ContactButton settings={settings} label="Pedir presupuesto" />
+    ) : hub.key === "tienda" && stores.length > 0 ? (
+      <>
+        {stores.map((s) => (
+          <a
+            key={s.url}
+            href={s.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold transition hover:brightness-110"
+            style={{ background: s.bg, color: s.fg }}
+          >
+            {s.label}
+          </a>
+        ))}
+      </>
+    ) : null;
 
   return (
     <>
@@ -124,65 +197,49 @@ export async function HubView({
         crumbs={[{ href: "/", label: "Inicio" }]}
         tone={danger ? "danger" : "default"}
       >
-        {hub.key === "servicios" && <ContactButton settings={settings} label="Pedir presupuesto" />}
-        {hub.key === "tienda" &&
-          stores.map((s) => (
-            <a
-              key={s.url}
-              href={s.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold transition hover:brightness-110"
-              style={{ background: s.bg, color: s.fg }}
-            >
-              {s.label}
-            </a>
-          ))}
+        {actions}
       </PageHero>
-      <SubNav keys={[hub.key, ...hub.children]} current={hub.key} pages={pages} />
+      <SubNav tabs={tabs} current={hub.key} />
 
       <div className="container-x space-y-20 py-12">
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {children.map((s) => {
-            const t = pages[s.key];
-            return (
-              <Link key={s.key} href={s.path} className="card card-hover group flex flex-col overflow-hidden">
-                <div className="relative aspect-[4/3] overflow-hidden">
-                  <ItemImage
-                    src={t.imageUrl}
-                    alt={t.title}
-                    icon={s.icon}
-                    label={t.navLabel}
-                    className="transition duration-700 group-hover:scale-105"
-                  />
-                  <span
-                    className={
-                      danger
-                        ? "absolute top-3 left-3 grid h-10 w-10 place-items-center rounded-xl bg-red-600/80 text-white"
-                        : "absolute top-3 left-3 grid h-10 w-10 place-items-center rounded-xl bg-accent/90 text-white"
-                    }
-                  >
-                    <Icon name={s.icon} className="h-5 w-5" />
-                  </span>
-                </div>
-                <div className="flex flex-1 flex-col p-5">
-                  <h2 className="font-display text-xl leading-tight font-bold text-white">{t.title}</h2>
-                  <p className="mt-2 text-sm text-zinc-400">{excerpt(t.intro, 110)}</p>
-                  <span className="mt-auto inline-flex items-center gap-1 pt-4 text-sm font-semibold text-accent-light">
-                    Entrar <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
-                  </span>
-                </div>
-              </Link>
-            );
-          })}
+          {entries.map((e) => (
+            <Link key={e.key} href={e.path} className="card card-hover group flex flex-col overflow-hidden">
+              <div className="relative aspect-[4/3] overflow-hidden">
+                <ItemImage
+                  src={e.image}
+                  alt={e.title}
+                  icon={e.icon}
+                  label={e.navLabel}
+                  className="transition duration-700 group-hover:scale-105"
+                />
+                <span
+                  className={
+                    danger
+                      ? "absolute top-3 left-3 grid h-10 w-10 place-items-center rounded-xl bg-red-600/80 text-white"
+                      : "absolute top-3 left-3 grid h-10 w-10 place-items-center rounded-xl bg-accent/90 text-white"
+                  }
+                >
+                  <Icon name={e.icon} className="h-5 w-5" />
+                </span>
+              </div>
+              <div className="flex flex-1 flex-col p-5">
+                <h2 className="font-display text-xl leading-tight font-bold text-white">{e.title}</h2>
+                <p className="mt-2 text-sm text-zinc-400">{excerpt(e.intro, 110)}</p>
+                <span className="mt-auto inline-flex items-center gap-1 pt-4 text-sm font-semibold text-accent-light">
+                  Entrar <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
+                </span>
+              </div>
+            </Link>
+          ))}
         </div>
 
-        {children.map((s, i) =>
-          previews[i].length > 0 ? (
-            <section key={s.key}>
-              <SectionHeading eyebrow={pages[s.key].navLabel} title={pages[s.key].title} href={s.path} />
+        {entries.map((e, i) =>
+          e.def && previews[i].length > 0 ? (
+            <section key={e.key}>
+              <SectionHeading eyebrow={e.navLabel} title={e.title} href={e.path} />
               <div className="mt-8">
-                <SectionBody section={s} items={previews[i]} settings={settings} admin={admin} preview />
+                <SectionBody section={e.def} items={previews[i]} settings={settings} admin={admin} preview />
               </div>
             </section>
           ) : null,
@@ -207,7 +264,7 @@ export async function ItemDetailView({
   settings: Settings;
   admin: boolean;
 }) {
-  const text = pages[section.key];
+  const text = textFor(section, pages);
   const all = await getItems(section.key);
   const idx = all.findIndex((i) => i.id === item.id);
   const prev = idx > 0 ? all[idx - 1] : undefined;
@@ -343,23 +400,36 @@ export async function ItemDetailView({
   );
 }
 
-/* ───────────────────────── Páginas personalizadas */
-export function CustomPageView({ page, admin }: { page: Item; admin: boolean }) {
+/* ───────────────────────── Página libre creada desde el panel */
+export function CustomPageView({
+  custom,
+  pages,
+  tabs,
+  admin,
+}: {
+  custom: CustomSection;
+  pages: Record<string, PageText>;
+  tabs: Tab[];
+  admin: boolean;
+}) {
+  const page = custom.item;
   return (
     <>
       <PageHero
         title={page.title}
         intro={page.subtitle}
         image={page.imageUrl}
-        icon="file"
-        crumbs={[{ href: "/", label: "Inicio" }]}
+        icon={custom.icon}
+        eyebrow={eyebrowFor(custom.group, pages)}
+        crumbs={crumbsFor({ key: custom.key, group: custom.group }, pages)}
       >
-        {page.linkUrl && (
+        {page.linkUrl ? (
           <SmartLink href={page.linkUrl} className="btn-primary">
             {page.linkLabel || "Ver más"}
           </SmartLink>
-        )}
+        ) : null}
       </PageHero>
+      <SubNav tabs={tabs} current={custom.key} />
       <div className="container-x space-y-12 py-12">
         <RichText text={page.content} className="max-w-3xl text-lg text-zinc-300" />
         {page.videoUrl && <MediaPlayer url={page.videoUrl} title={page.title} className="max-w-4xl" />}

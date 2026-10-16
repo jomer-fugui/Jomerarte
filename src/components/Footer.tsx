@@ -3,18 +3,12 @@ import { Clock, Mail, MapPin, MessageCircle, Phone } from "lucide-react";
 import type { Settings } from "@/lib/defaults";
 import type { NavGroup } from "@/lib/nav";
 import { waLink } from "@/lib/format";
+import { socialLinks } from "@/lib/social";
 import { SiteLogo } from "./Logo";
-import { FacebookIcon, InstagramIcon, TiktokIcon, XIcon, YoutubeIcon, TelegramIcon } from "./icons";
+import { SocialIcon } from "./icons";
 
 export function Footer({ settings, nav }: { settings: Settings; nav: NavGroup[] }) {
-  const socials = [
-    { url: settings.instagram, label: "Instagram", Icon: InstagramIcon },
-    { url: settings.facebook, label: "Facebook", Icon: FacebookIcon },
-    { url: settings.youtube, label: "YouTube", Icon: YoutubeIcon },
-    { url: settings.tiktok, label: "TikTok", Icon: TiktokIcon },
-    { url: settings.twitter, label: "X", Icon: XIcon },
-    { url: settings.telegram, label: "Telegram", Icon: TelegramIcon },
-  ].filter((s) => s.url);
+  const socials = socialLinks(settings);
   const wa = waLink(settings.whatsapp, settings.whatsappMessage);
   const year = new Date().getFullYear();
 
@@ -65,17 +59,18 @@ export function Footer({ settings, nav }: { settings: Settings; nav: NavGroup[] 
             )}
           </ul>
           {socials.length > 0 && (
-            <div className="mt-5 flex gap-2">
-              {socials.map(({ url, label, Icon }) => (
+            <div className="mt-5 flex flex-wrap gap-2">
+              {socials.map((s) => (
                 <a
-                  key={label}
-                  href={url}
+                  key={s.key}
+                  href={s.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  aria-label={label}
+                  aria-label={s.label}
+                  title={s.label}
                   className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 bg-white/5 text-zinc-300 transition hover:border-accent hover:text-white"
                 >
-                  <Icon className="h-5 w-5" />
+                  <SocialIcon kind={s.key} className="h-5 w-5" />
                 </a>
               ))}
             </div>
@@ -104,7 +99,7 @@ export function Footer({ settings, nav }: { settings: Settings; nav: NavGroup[] 
             © {year} {settings.siteName} · Jomer Worrhis. Todos los derechos reservados.
           </span>
           <Link href="/admin" className="hover:text-zinc-300">
-            °
+            Administrar sitio
           </Link>
         </div>
       </div>

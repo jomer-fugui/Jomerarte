@@ -5,7 +5,7 @@ export const DEFAULT_SETTINGS = {
   logoUrl: "",
   logoLightUrl: "",
   footerText:
-    "Electricidad, seguridad, tecnología, inventos y arte. Hecho con pasión por Jomer Works.",
+    "Electricidad, seguridad, tecnología, inventos y arte. Hecho con pasión por Jomer Worrhis.",
   heroTitle: "Energía, seguridad y creatividad con sello propio",
   heroText:
     "Soy Jomer: electricista, instalador de cámaras, creador de páginas web, inventor y artista. Aquí encontrarás mis servicios, mi tienda, mis frases, mis inventos y el universo de CielInfier.",
@@ -25,6 +25,7 @@ export const DEFAULT_SETTINGS = {
   youtube: "",
   tiktok: "",
   twitter: "",
+  telegram: "",
   storeMercadoLibre: "",
   storeHotmart: "",
   storeAliExpress: "",
@@ -103,6 +104,12 @@ export const SETTINGS_GROUPS: { title: string; description?: string; fields: Set
       { key: "youtube", label: "YouTube (enlace)", type: "url" },
       { key: "tiktok", label: "TikTok (enlace)", type: "url" },
       { key: "twitter", label: "X / Twitter (enlace)", type: "url" },
+      {
+        key: "telegram",
+        label: "Telegram (enlace o @usuario)",
+        type: "text",
+        hint: "Ej: https://t.me/tuusuario o simplemente @tuusuario. También sirve el enlace de tu canal o grupo.",
+      },
     ],
   },
   {

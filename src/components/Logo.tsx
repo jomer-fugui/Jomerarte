@@ -27,12 +27,12 @@ export function LogoMark({ className, idPrefix = "jw" }: { className?: string; i
       <path d="M92 100 L107 103 L98 115 Z" fill="#7a0d14" stroke="#050505" strokeWidth="3" strokeLinejoin="round" />
       <g
         fontFamily="'Zen Dots', ui-sans-serif, system-ui, sans-serif"
-        fontSize="33"
+        fontSize="31"
         fill="#7c7c82"
         stroke="#050505"
         strokeWidth="1.4"
         paintOrder="stroke"
-        letterSpacing="8"
+        letterSpacing="6"
       >
         <text textAnchor="middle">
           <textPath href={`#${top}`} startOffset="50%">
@@ -41,7 +41,7 @@ export function LogoMark({ className, idPrefix = "jw" }: { className?: string; i
         </text>
         <text textAnchor="middle">
           <textPath href={`#${bottom}`} startOffset="50%">
-            WORKS
+            WORRHIS
           </textPath>
         </text>
       </g>

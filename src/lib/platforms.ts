@@ -3,15 +3,21 @@ export interface PlatformDef {
   label: string;
   bg: string;
   fg: string;
+  /**
+   * Cómo reconocer la plataforma por su enlace:
+   *  - "palabra"      → el dominio la contiene (mercadolibre → mercadolibre.com.ar)
+   *  - "dominio.com"  → dominio exacto o subdominio (t.me, wa.me, youtu.be)
+   *  - "marca."       → la marca con cualquier extensión (amazon. → amazon.com, amazon.es)
+   */
   domains: string[];
 }
 
 export const PLATFORMS: PlatformDef[] = [
   { key: "propio", label: "Jomerarte", bg: "var(--accent)", fg: "#ffffff", domains: ["jomerarte.com"] },
-  { key: "mercadolibre", label: "Mercado Libre", bg: "#FFE600", fg: "#2D3277", domains: ["mercadolibre", "mercadolivre", "meli.la", "mercadoli.br"] },
-  { key: "mercadopago", label: "Mercado Pago", bg: "#00B1EA", fg: "#ffffff", domains: ["mercadopago", "mpago.la", "link.mercadopago"] },
+  { key: "mercadolibre", label: "Mercado Libre", bg: "#FFE600", fg: "#2D3277", domains: ["mercadolibre", "mercadolivre", "meli.la"] },
+  { key: "mercadopago", label: "Mercado Pago", bg: "#00B1EA", fg: "#ffffff", domains: ["mercadopago", "mpago.la"] },
   { key: "hotmart", label: "Hotmart", bg: "#F04E23", fg: "#ffffff", domains: ["hotmart", "hotm.art"] },
-  { key: "aliexpress", label: "AliExpress", bg: "#E62E04", fg: "#ffffff", domains: ["aliexpress", "s.click.ali", "a.aliexpress"] },
+  { key: "aliexpress", label: "AliExpress", bg: "#E62E04", fg: "#ffffff", domains: ["aliexpress"] },
   { key: "amazon", label: "Amazon", bg: "#FF9900", fg: "#111111", domains: ["amazon.", "amzn."] },
   { key: "temu", label: "Temu", bg: "#FB7701", fg: "#ffffff", domains: ["temu.com"] },
   { key: "shein", label: "Shein", bg: "#111111", fg: "#ffffff", domains: ["shein."] },
@@ -29,6 +35,7 @@ export const PLATFORMS: PlatformDef[] = [
   { key: "instagram", label: "Instagram", bg: "#E1306C", fg: "#ffffff", domains: ["instagram."] },
   { key: "tiktok", label: "TikTok", bg: "#111111", fg: "#ffffff", domains: ["tiktok."] },
   { key: "facebook", label: "Facebook", bg: "#1877F2", fg: "#ffffff", domains: ["facebook.", "fb.com", "fb.me"] },
+  { key: "telegram", label: "Telegram", bg: "#26A5E4", fg: "#ffffff", domains: ["t.me", "telegram.me", "telegram."] },
   { key: "spotify", label: "Spotify", bg: "#1DB954", fg: "#111111", domains: ["spotify."] },
   { key: "whatsapp", label: "WhatsApp", bg: "#25D366", fg: "#0b141a", domains: ["wa.me", "whatsapp."] },
   { key: "web", label: "Sitio web", bg: "#3f3f46", fg: "#ffffff", domains: [] },
@@ -40,7 +47,13 @@ export function getPlatform(key: string | null | undefined): PlatformDef | undef
   return PLATFORMS.find((p) => p.key === key);
 }
 
-/** Detecta la plataforma a partir de un enlace (mercadolibre, hotmart, aliexpress, etc.) */
+function hostMatches(host: string, pattern: string): boolean {
+  if (pattern.endsWith(".")) return host.startsWith(pattern) || host.includes(`.${pattern}`);
+  if (pattern.includes(".")) return host === pattern || host.endsWith(`.${pattern}`);
+  return host.includes(pattern);
+}
+
+/** Detecta la plataforma a partir de un enlace (Mercado Libre, Hotmart, AliExpress, Telegram, etc.) */
 export function detectPlatform(url: string): string {
   if (!url) return "";
   if (url.startsWith("/")) return "propio";
@@ -51,7 +64,7 @@ export function detectPlatform(url: string): string {
     return "";
   }
   for (const p of PLATFORMS) {
-    if (p.domains.some((d) => host.includes(d))) return p.key;
+    if (p.domains.some((d) => hostMatches(host, d))) return p.key;
   }
   return "web";
 }

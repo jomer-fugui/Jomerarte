@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { Check, ChevronLeft, ChevronRight, Copy, FileText, Music, Play, Printer, X } from "lucide-react";
 import { cn, mediaKind, mediaThumb } from "@/lib/format";
 import { MediaPlayer } from "./media";
@@ -120,50 +121,48 @@ export function Gallery({ urls, title, className }: { urls: string[]; title?: st
         })}
       </div>
 
-      {open !== null && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 p-4" role="dialog" aria-modal="true">
-          <button
-            type="button"
-            className="absolute inset-0 cursor-default"
-            aria-label="Cerrar"
-            onClick={() => setOpen(null)}
-          />
-          <div className="relative z-10 flex max-h-full w-full max-w-5xl items-center justify-center">
-            <MediaPlayer key={list[open]} url={list[open]} title={title} autoPlay className="max-h-[85vh]" />
-          </div>
-          <button
-            type="button"
-            onClick={() => setOpen(null)}
-            className="absolute right-4 top-4 z-20 grid h-11 w-11 place-items-center rounded-full bg-white/10 text-white hover:bg-white/20"
-            aria-label="Cerrar"
-          >
-            <X className="h-5 w-5" />
-          </button>
-          {list.length > 1 && (
-            <>
-              <button
-                type="button"
-                onClick={() => setOpen((open - 1 + list.length) % list.length)}
-                className="absolute left-3 top-1/2 z-20 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-white/10 text-white hover:bg-white/20"
-                aria-label="Anterior"
-              >
-                <ChevronLeft className="h-6 w-6" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setOpen((open + 1) % list.length)}
-                className="absolute right-3 top-1/2 z-20 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-white/10 text-white hover:bg-white/20"
-                aria-label="Siguiente"
-              >
-                <ChevronRight className="h-6 w-6" />
-              </button>
-              <div className="absolute bottom-4 left-1/2 z-20 -translate-x-1/2 rounded-full bg-white/10 px-3 py-1 text-xs text-white">
-                {open + 1} / {list.length}
-              </div>
-            </>
-          )}
-        </div>
-      )}
+      {/* El visor se dibuja en <body> para cubrir siempre toda la pantalla */}
+      {open !== null &&
+        createPortal(
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 p-4" role="dialog" aria-modal="true">
+            <button type="button" className="absolute inset-0 cursor-default" aria-label="Cerrar" onClick={() => setOpen(null)} />
+            <div className="relative z-10 flex max-h-full w-full max-w-5xl items-center justify-center">
+              <MediaPlayer key={list[open]} url={list[open]} title={title} autoPlay className="max-h-[85vh]" />
+            </div>
+            <button
+              type="button"
+              onClick={() => setOpen(null)}
+              className="absolute top-4 right-4 z-20 grid h-11 w-11 place-items-center rounded-full bg-white/10 text-white hover:bg-white/20"
+              aria-label="Cerrar"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            {list.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setOpen((open - 1 + list.length) % list.length)}
+                  className="absolute top-1/2 left-3 z-20 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-white/10 text-white hover:bg-white/20"
+                  aria-label="Anterior"
+                >
+                  <ChevronLeft className="h-6 w-6" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setOpen((open + 1) % list.length)}
+                  className="absolute top-1/2 right-3 z-20 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-white/10 text-white hover:bg-white/20"
+                  aria-label="Siguiente"
+                >
+                  <ChevronRight className="h-6 w-6" />
+                </button>
+                <div className="absolute bottom-4 left-1/2 z-20 -translate-x-1/2 rounded-full bg-white/10 px-3 py-1 text-xs text-white">
+                  {open + 1} / {list.length}
+                </div>
+              </>
+            )}
+          </div>,
+          document.body,
+        )}
     </>
   );
 }

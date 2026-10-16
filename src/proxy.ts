@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 /**
  * Subdominios:
- *  - frases.jomerarte.com      → /Frases      (frases.jomerarte.com/Colmos → /Frases/Colmos)
+ *  - frases.jomerarte.com      → /Frases      (frases.jomerarte.com/Preguntas → /Frases/Preguntas)
  *  - cielinfier.jomerarte.com  → /Cielinfier  (cielinfier.jomerarte.com/historia → /Cielinfier/historia)
  * Requiere configurar los subdominios en el DNS apuntando al mismo servidor.
  */

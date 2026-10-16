@@ -379,7 +379,7 @@ export const SEED_ITEMS: NewItem[] = [
     category: "Técnicos",
     rating: 1,
   },
-  // ───────────────── Frases de un Herje
+  // ───────────────── Frases de un Hereje
   { section: "frases", category: "Ego", content: "El ego es como la corriente: no se ve, pero cuando lo tocas, te sacude." },
   { section: "frases", category: "Consejos", content: "Antes de tocar un cable, corta la luz. Antes de opinar, corta el ego." },
   { section: "frases", category: "Reflexión", content: "No es que el tiempo pase rápido; es que nosotros vivimos lento." },
@@ -604,6 +604,8 @@ export const SEED_ITEMS: NewItem[] = [
   {
     section: "custom",
     slug: "SobreMi",
+    pageType: "page",
+    menuGroup: "mas",
     title: "Sobre mí",
     subtitle: "Electricista, creador y soñador",
     content:

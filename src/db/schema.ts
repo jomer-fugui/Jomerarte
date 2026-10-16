@@ -38,6 +38,10 @@ export const items = pgTable(
     unit: text("unit").notNull().default(""),
     rating: integer("rating").notNull().default(0),
     location: text("location").notNull().default(""),
+    /** Solo páginas personalizadas: tipo de página, ubicación en el menú e ícono */
+    pageType: varchar("page_type", { length: 32 }).notNull().default(""),
+    menuGroup: varchar("menu_group", { length: 32 }).notNull().default(""),
+    icon: varchar("icon", { length: 32 }).notNull().default(""),
     featured: boolean("featured").notNull().default(false),
     published: boolean("published").notNull().default(true),
     sortOrder: integer("sort_order").notNull().default(0),

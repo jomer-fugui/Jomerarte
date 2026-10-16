@@ -5,6 +5,7 @@ import type { NavGroup } from "@/lib/nav";
 import { cn } from "@/lib/format";
 import { SiteLogo } from "./Logo";
 import { MobileNav } from "./MobileNav";
+import { socialLinks } from "@/lib/social";
 import { Icon } from "./icons";
 
 export function Header({ settings, nav, showDonate }: { settings: Settings; nav: NavGroup[]; showDonate: boolean }) {
@@ -58,7 +59,7 @@ export function Header({ settings, nav, showDonate }: { settings: Settings; nav:
             <Heart className="h-4 w-4" /> Donar
           </Link>
         )}
-        <MobileNav nav={nav} showDonate={showDonate} />
+        <MobileNav nav={nav} showDonate={showDonate} socials={socialLinks(settings)} />
       </div>
     </header>
   );

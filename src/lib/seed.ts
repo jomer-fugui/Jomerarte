@@ -5,8 +5,10 @@ import { SEED_ITEMS } from "./seed-data";
 /**
  * Crea / actualiza las tablas automáticamente (no hace falta correr comandos en Vercel).
  * Sube SCHEMA_VERSION cuando cambie la estructura para que se vuelva a aplicar.
+ *  v3: páginas personalizadas con tipo, ubicación e ícono + correcciones de textos
+ *      ("Jomer Worrhis", "Hereje", "Preguntas").
  */
-const SCHEMA_VERSION = "2";
+const SCHEMA_VERSION = "3";
 
 const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS "items" (
@@ -27,6 +29,9 @@ CREATE TABLE IF NOT EXISTS "items" (
   "unit" text DEFAULT '' NOT NULL,
   "rating" integer DEFAULT 0 NOT NULL,
   "location" text DEFAULT '' NOT NULL,
+  "page_type" varchar(32) DEFAULT '' NOT NULL,
+  "menu_group" varchar(32) DEFAULT '' NOT NULL,
+  "icon" varchar(32) DEFAULT '' NOT NULL,
   "featured" boolean DEFAULT false NOT NULL,
   "published" boolean DEFAULT true NOT NULL,
   "sort_order" integer DEFAULT 0 NOT NULL,
@@ -58,6 +63,17 @@ CREATE TABLE IF NOT EXISTS "media" (
 );
 ALTER TABLE "media" ADD COLUMN IF NOT EXISTS "url" text DEFAULT '' NOT NULL;
 ALTER TABLE "media" ALTER COLUMN "data" DROP NOT NULL;
+ALTER TABLE "items" ADD COLUMN IF NOT EXISTS "page_type" varchar(32) DEFAULT '' NOT NULL;
+ALTER TABLE "items" ADD COLUMN IF NOT EXISTS "menu_group" varchar(32) DEFAULT '' NOT NULL;
+ALTER TABLE "items" ADD COLUMN IF NOT EXISTS "icon" varchar(32) DEFAULT '' NOT NULL;
+UPDATE "settings" SET "value" = replace("value", 'Jomer Works', 'Jomer Worrhis') WHERE "value" LIKE '%Jomer Works%';
+UPDATE "pages" SET
+  "nav_label" = replace(replace("nav_label", 'Herje', 'Hereje'), 'herje', 'hereje'),
+  "title" = replace(replace("title", 'Herje', 'Hereje'), 'herje', 'hereje'),
+  "intro" = replace(replace("intro", 'Herje', 'Hereje'), 'herje', 'hereje')
+  WHERE "nav_label" ILIKE '%herje%' OR "title" ILIKE '%herje%' OR "intro" ILIKE '%herje%';
+UPDATE "pages" SET "nav_label" = 'Preguntas' WHERE "key" = 'colmos' AND "nav_label" = 'Colmos';
+UPDATE "pages" SET "title" = 'Preguntas' WHERE "key" = 'colmos' AND "title" = 'Colmos';
 `;
 
 async function currentSchemaVersion(): Promise<string | null> {

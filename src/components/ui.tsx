@@ -2,10 +2,10 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { ArrowRight, ChevronRight, ExternalLink, Mail, MessageCircle, Pencil, Plus, Sparkles, Star } from "lucide-react";
 import type { Settings } from "@/lib/defaults";
-import type { PageText } from "@/lib/data";
+import type { Tab } from "@/lib/nav";
 import { cn, isExternal, richTextToHtml, waLink } from "@/lib/format";
 import { getPlatform } from "@/lib/platforms";
-import { getPageDef, type IconName } from "@/lib/sections";
+import type { IconName } from "@/lib/sections";
 import { Icon } from "./icons";
 
 export function RichText({ text, className }: { text: string; className?: string }) {
@@ -254,30 +254,25 @@ export function PageHero({
   );
 }
 
-export function SubNav({ keys, current, pages }: { keys: string[]; current: string; pages: Record<string, PageText> }) {
-  const visible = keys.filter((k) => pages[k]?.visible !== false);
-  if (visible.length < 2) return null;
+export function SubNav({ tabs, current }: { tabs: Tab[]; current: string }) {
+  if (tabs.length < 2) return null;
   return (
     <div className="no-print sticky top-16 z-30 border-b border-white/10 bg-zinc-950/85 backdrop-blur-xl">
       <div className="container-x no-scrollbar flex gap-2 overflow-x-auto py-3">
-        {visible.map((k) => {
-          const def = getPageDef(k);
-          if (!def) return null;
-          const active = k === current;
-          const label = def.hub ? def.allLabel : pages[k]?.navLabel || def.navLabel;
-          return (
-            <Link
-              key={k}
-              href={def.path}
-              className={cn(
-                "rounded-full px-4 py-1.5 text-sm font-medium whitespace-nowrap transition",
-                active ? "bg-accent text-white shadow-lg shadow-accent/25" : "bg-white/5 text-zinc-300 hover:bg-white/10 hover:text-white",
-              )}
-            >
-              {label}
-            </Link>
-          );
-        })}
+        {tabs.map((t) => (
+          <Link
+            key={t.key}
+            href={t.href}
+            className={cn(
+              "rounded-full px-4 py-1.5 text-sm font-medium whitespace-nowrap transition",
+              t.key === current
+                ? "bg-accent text-white shadow-lg shadow-accent/25"
+                : "bg-white/5 text-zinc-300 hover:bg-white/10 hover:text-white",
+            )}
+          >
+            {t.label}
+          </Link>
+        ))}
       </div>
     </div>
   );

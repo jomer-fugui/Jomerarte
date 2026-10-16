@@ -7,7 +7,7 @@ import {
   ChevronDown,
   Feather,
   Globe,
-  Laugh,
+  CircleHelp,
   MapPin,
   Play,
   Quote,
@@ -288,7 +288,7 @@ function QuotesWall({ section, items, category, preview }: ViewProps) {
       {!preview && <CategoryChips categories={categories} counts={counts} active={category} basePath={section.path} />}
       <div className="columns-1 gap-5 sm:columns-2 lg:columns-3">
         {filtered.map((it) => {
-          const share = `“${it.content}” — Frases de un Herje · jomerarte.com`;
+          const share = `“${it.content}” — Frases de un Hereje · jomerarte.com`;
           return (
             <figure key={it.id} className="card relative mb-5 break-inside-avoid overflow-hidden p-6">
               <Quote className="h-8 w-8 text-accent" />
@@ -341,7 +341,7 @@ function ColmosGrid({ items }: ViewProps) {
         <details key={it.id} className="card group p-6 transition open:border-accent/60">
           <summary className="flex items-start gap-4">
             <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-accent/15 text-accent-light">
-              <Laugh className="h-5 w-5" />
+              <CircleHelp className="h-5 w-5" />
             </span>
             <span className="flex-1">
               <span className="block font-display text-xl leading-snug font-bold text-white">{it.title}</span>
@@ -623,7 +623,7 @@ function PostsGrid({ section, items, category, preview }: ViewProps) {
                 href={itemPath(section.path, it)}
                 className="mt-auto inline-flex items-center gap-1 pt-4 text-sm font-semibold text-accent-light"
               >
-                {isInvention ? "Ver invento" : "Ver avance"} <ArrowRight className="h-4 w-4" />
+                {isInvention ? (section.key === "inventos" ? "Ver invento" : "Ver más") : "Ver avance"} <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
           </article>

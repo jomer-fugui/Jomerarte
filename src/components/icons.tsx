@@ -2,23 +2,40 @@ import {
   Award,
   Ban,
   BookOpen,
+  Briefcase,
+  CalendarDays,
   Camera,
+  Car,
+  CircleHelp,
+  Coffee,
+  Cpu,
   Download,
   Feather,
   FileText,
   Flame,
+  Gamepad2,
+  Gift,
   Globe,
   GraduationCap,
   Hammer,
   Heart,
   House,
+  Image as ImageIcon,
   Laugh,
+  Leaf,
   Lightbulb,
   Link2,
   ListOrdered,
+  MapPin,
+  Megaphone,
   Music,
+  Newspaper,
   Package,
+  Palette,
+  Phone,
   Quote,
+  Rocket,
+  Shield,
   ShoppingCart,
   Skull,
   Sparkles,
@@ -29,45 +46,65 @@ import {
   ThumbsUp,
   TriangleAlert,
   Users,
+  Video,
   Wrench,
   Zap,
   type LucideIcon,
 } from "lucide-react";
 import type { IconName } from "@/lib/sections";
+import type { SocialKind } from "@/lib/social";
 
 const MAP: Record<IconName, LucideIcon> = {
+  file: FileText,
+  sparkles: Sparkles,
+  star: Star,
+  heart: Heart,
+  thumbsUp: ThumbsUp,
+  award: Award,
+  store: Store,
+  cart: ShoppingCart,
+  package: Package,
+  tag: Tag,
+  wrench: Wrench,
   zap: Zap,
   camera: Camera,
   globe: Globe,
   graduation: GraduationCap,
-  store: Store,
-  cart: ShoppingCart,
-  download: Download,
-  package: Package,
-  thumbsUp: ThumbsUp,
-  award: Award,
-  link: Link2,
-  alert: TriangleAlert,
-  skull: Skull,
+  briefcase: Briefcase,
+  rocket: Rocket,
+  shield: Shield,
+  lightbulb: Lightbulb,
+  hammer: Hammer,
+  cpu: Cpu,
+  users: Users,
   quote: Quote,
+  question: CircleHelp,
   laugh: Laugh,
   feather: Feather,
   music: Music,
-  swords: Swords,
   book: BookOpen,
-  hammer: Hammer,
-  lightbulb: Lightbulb,
-  list: ListOrdered,
-  heart: Heart,
-  file: FileText,
-  home: House,
-  wrench: Wrench,
-  star: Star,
-  sparkles: Sparkles,
+  newspaper: Newspaper,
+  megaphone: Megaphone,
+  image: ImageIcon,
+  video: Video,
+  palette: Palette,
+  gamepad: Gamepad2,
+  swords: Swords,
   flame: Flame,
-  users: Users,
-  tag: Tag,
+  skull: Skull,
+  alert: TriangleAlert,
   ban: Ban,
+  link: Link2,
+  list: ListOrdered,
+  download: Download,
+  gift: Gift,
+  map: MapPin,
+  phone: Phone,
+  calendar: CalendarDays,
+  car: Car,
+  leaf: Leaf,
+  coffee: Coffee,
+  home: House,
 };
 
 export function Icon({ name, className }: { name: IconName; className?: string }) {
@@ -121,10 +158,28 @@ export function XIcon({ className }: BrandProps) {
   );
 }
 
+/** Avión de papel de Telegram */
 export function TelegramIcon({ className }: BrandProps) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
-      <path d="M21.5 4.5 2.5 12.5l7 1 1.5 7 3.5-4.5L21.5 4.5z" />
+      <path d="M15 10l-4 4l6 6l4-16l-18 7l4 2l2 6l3-4" />
     </svg>
   );
+}
+
+export function SocialIcon({ kind, className }: { kind: SocialKind; className?: string }) {
+  switch (kind) {
+    case "instagram":
+      return <InstagramIcon className={className} />;
+    case "facebook":
+      return <FacebookIcon className={className} />;
+    case "youtube":
+      return <YoutubeIcon className={className} />;
+    case "tiktok":
+      return <TiktokIcon className={className} />;
+    case "telegram":
+      return <TelegramIcon className={className} />;
+    default:
+      return <XIcon className={className} />;
+  }
 }

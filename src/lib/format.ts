@@ -127,3 +127,13 @@ export function richTextToHtml(text: string): string {
     })
     .join("");
 }
+
+/** Acepta "https://t.me/usuario", "t.me/usuario" o "@usuario" y devuelve el enlace de Telegram. */
+export function telegramUrl(value: string): string {
+  const s = (value || "").trim();
+  if (!s) return "";
+  if (/^https?:\/\//i.test(s)) return s;
+  if (/^(t\.me|telegram\.me)\//i.test(s)) return `https://${s}`;
+  const user = s.replace(/^@/, "").replace(/[^A-Za-z0-9_+]/g, "");
+  return user ? `https://t.me/${user}` : "";
+}

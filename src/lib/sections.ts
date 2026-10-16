@@ -42,39 +42,20 @@ export type GroupKey =
   | "cielinfier"
   | "mas";
 
-export type IconName =
-  | "zap"
-  | "camera"
-  | "globe"
-  | "graduation"
-  | "store"
-  | "cart"
-  | "download"
-  | "package"
-  | "thumbsUp"
-  | "award"
-  | "link"
-  | "alert"
-  | "skull"
-  | "quote"
-  | "laugh"
-  | "feather"
-  | "music"
-  | "swords"
-  | "book"
-  | "hammer"
-  | "lightbulb"
-  | "list"
-  | "heart"
-  | "file"
-  | "home"
-  | "wrench"
-  | "star"
-  | "sparkles"
-  | "flame"
-  | "users"
-  | "tag"
-  | "ban";
+/** Íconos disponibles (también para las páginas que crees desde el panel). */
+export const ICON_NAMES = [
+  "file", "sparkles", "star", "heart", "thumbsUp", "award", "store", "cart", "package", "tag",
+  "wrench", "zap", "camera", "globe", "graduation", "briefcase", "rocket", "shield", "lightbulb", "hammer",
+  "cpu", "users", "quote", "question", "laugh", "feather", "music", "book", "newspaper", "megaphone",
+  "image", "video", "palette", "gamepad", "swords", "flame", "skull", "alert", "ban", "link",
+  "list", "download", "gift", "map", "phone", "calendar", "car", "leaf", "coffee", "home",
+] as const;
+
+export type IconName = (typeof ICON_NAMES)[number];
+
+export function isIconName(v: string): v is IconName {
+  return (ICON_NAMES as readonly string[]).includes(v);
+}
 
 export interface SectionDef {
   key: string;
@@ -500,8 +481,8 @@ export const SECTIONS: SectionDef[] = [
     key: "frases",
     path: "/Frases",
     group: "frases",
-    navLabel: "Frases de un Herje",
-    title: "Frases de un Herje",
+    navLabel: "Frases de un Hereje",
+    title: "Frases de un Hereje",
     intro: "Ego, consejos, reflexiones, negocios, política, verdades incómodas y alguna que otra estupidez.",
     layout: "quotes",
     icon: "quote",
@@ -517,15 +498,15 @@ export const SECTIONS: SectionDef[] = [
   },
   {
     key: "colmos",
-    path: "/Frases/Colmos",
+    path: "/Frases/Preguntas",
     group: "frases",
-    navLabel: "Colmos",
-    title: "Colmos",
-    intro: "¿Cuál es el colmo de…? Toca cada tarjeta para ver la respuesta.",
+    navLabel: "Preguntas",
+    title: "Preguntas",
+    intro: "Preguntas con respuesta sorpresa: toca cada tarjeta para descubrir la respuesta.",
     layout: "colmos",
-    icon: "laugh",
-    itemLabel: "colmo",
-    fields: { title: "Pregunta (¿Cuál es el colmo de…?)", content: "Respuesta" },
+    icon: "question",
+    itemLabel: "pregunta",
+    fields: { title: "Pregunta", content: "Respuesta" },
   },
   {
     key: "poesias",
@@ -738,7 +719,7 @@ export const SECTIONS: SectionDef[] = [
     group: "mas",
     navLabel: "Páginas personalizadas",
     title: "Páginas personalizadas",
-    intro: "Crea páginas nuevas con la dirección que quieras (por ejemplo jomerarte.com/Contacto).",
+    intro: "Crea páginas nuevas, elige su tipo y en qué sección del menú aparecen (por ejemplo “Emprendedores” dentro de Recomendaciones).",
     layout: "custom",
     icon: "file",
     itemLabel: "página",
@@ -815,7 +796,9 @@ const ALIASES: Record<string, string> = {
   "/cielinfier/personajes": "/Cielinfier",
   "/frases/poesia": "/Frases/Poesias",
   "/poesias": "/Frases/Poesias",
-  "/colmos": "/Frases/Colmos",
+  "/colmos": "/Frases/Preguntas",
+  "/frases/colmos": "/Frases/Preguntas",
+  "/preguntas": "/Frases/Preguntas",
   "/canciones": "/CancionesJomer",
   "/donaciones": "/Donacion",
   "/donar": "/Donacion",
@@ -855,9 +838,293 @@ export function pathOf(key: string): string {
   return getPageDef(key)?.path ?? "/";
 }
 
-const FEMININE = new Set(["frase", "poesía", "canción", "página", "marca", "marca o producto"]);
+const FEMININE = new Set(["frase", "poesía", "canción", "página", "marca", "marca o producto", "pregunta", "recomendación", "publicación"]);
 
 /** “Nueva frase”, “Nuevo producto”… */
 export function newItemLabel(section: Pick<SectionDef, "itemLabel">): string {
   return `${FEMININE.has(section.itemLabel) ? "Nueva" : "Nuevo"} ${section.itemLabel}`;
+}
+
+/* ═════════════ Páginas personalizadas (creadas desde el panel) ═════════════ */
+
+export type PageTypeKey = "page" | Exclude<Layout, "custom">;
+
+export interface PageTypeDef {
+  key: PageTypeKey;
+  label: string;
+  description: string;
+  icon: IconName;
+  itemLabel: string;
+  fields: SectionDef["fields"];
+  categories?: string[];
+  detail?: boolean;
+}
+
+const fieldsOf = (key: string): SectionDef["fields"] => SECTIONS.find((s) => s.key === key)?.fields ?? {};
+
+/** Tipos de página que se pueden elegir al crear una página nueva. */
+export const PAGE_TYPES: PageTypeDef[] = [
+  {
+    key: "page",
+    label: "Página libre",
+    description: "Texto con formato, imagen, galería de fotos y videos y un botón. Ideal para Contacto, Sobre mí o Trabajos realizados.",
+    icon: "file",
+    itemLabel: "",
+    fields: {},
+  },
+  {
+    key: "recommend",
+    label: "Recomendaciones",
+    description: "Negocios, marcas, páginas o servicios que recomiendas, con estrellas, ubicación y enlace.",
+    icon: "thumbsUp",
+    itemLabel: "recomendación",
+    fields: RECOMMEND_FIELDS,
+  },
+  {
+    key: "products",
+    label: "Productos / tienda",
+    description: "Productos con foto, precio y botón de compra (Mercado Libre, Hotmart, AliExpress, Amazon…).",
+    icon: "package",
+    itemLabel: "producto",
+    fields: PRODUCT_FIELDS,
+    detail: true,
+  },
+  {
+    key: "services",
+    label: "Servicios o cursos",
+    description: "Servicios con descripción, fotos, precio y botón de consulta por WhatsApp.",
+    icon: "wrench",
+    itemLabel: "servicio",
+    fields: SERVICE_FIELDS,
+    detail: true,
+  },
+  {
+    key: "bad",
+    label: "No recomendable",
+    description: "Lugares, marcas o servicios que NO recomiendas, con tu experiencia y pruebas.",
+    icon: "alert",
+    itemLabel: "elemento",
+    fields: BAD_FIELDS,
+  },
+  {
+    key: "quotes",
+    label: "Frases",
+    description: "Muro de frases con categorías y botones para copiar y compartir.",
+    icon: "quote",
+    itemLabel: "frase",
+    fields: fieldsOf("frases"),
+  },
+  {
+    key: "poems",
+    label: "Poesías o letras",
+    description: "Textos que respetan los saltos de línea, con categorías y audio o video opcional.",
+    icon: "feather",
+    itemLabel: "poesía",
+    fields: fieldsOf("poesias"),
+  },
+  {
+    key: "colmos",
+    label: "Preguntas y respuestas",
+    description: "Tarjetas con una pregunta que, al tocarlas, muestran la respuesta.",
+    icon: "question",
+    itemLabel: "pregunta",
+    fields: fieldsOf("colmos"),
+  },
+  {
+    key: "inventions",
+    label: "Publicaciones con galería",
+    description: "Proyectos, trabajos realizados o inventos con fotos, videos y página propia.",
+    icon: "lightbulb",
+    itemLabel: "publicación",
+    fields: { ...fieldsOf("inventos"), title: "Título", category: "Categoría o estado (opcional)" },
+    detail: true,
+  },
+  {
+    key: "devlog",
+    label: "Diario de avances",
+    description: "Avances con fecha o etapa, como el proceso de un proyecto.",
+    icon: "hammer",
+    itemLabel: "avance",
+    fields: fieldsOf("cielinfier-proceso"),
+    detail: true,
+  },
+  {
+    key: "characters",
+    label: "Personajes",
+    description: "Fichas de personajes con imagen, bando, historia y galería.",
+    icon: "swords",
+    itemLabel: "personaje",
+    fields: fieldsOf("cielinfier-personajes"),
+    detail: true,
+  },
+  {
+    key: "story",
+    label: "Historia por capítulos",
+    description: "Capítulos en línea de tiempo, cada uno con su propia página.",
+    icon: "book",
+    itemLabel: "capítulo",
+    fields: fieldsOf("cielinfier-historia"),
+    detail: true,
+  },
+  {
+    key: "songs",
+    label: "Canciones",
+    description: "Letras con audio o video de YouTube y enlace a Spotify u otras plataformas.",
+    icon: "music",
+    itemLabel: "canción",
+    fields: fieldsOf("canciones"),
+    detail: true,
+  },
+  {
+    key: "links",
+    label: "Enlaces a otras páginas",
+    description: "Tarjetas con enlaces a otras webs, redes sociales o canales.",
+    icon: "link",
+    itemLabel: "enlace",
+    fields: fieldsOf("mis-paginas"),
+  },
+  {
+    key: "prices",
+    label: "Lista de precios",
+    description: "Tabla de precios agrupada por rubro, lista para imprimir o guardar en PDF.",
+    icon: "list",
+    itemLabel: "precio",
+    fields: PRICE_FIELDS("Servicio o producto"),
+  },
+  {
+    key: "donations",
+    label: "Medios de pago o donación",
+    description: "Alias, CBU o usuario para copiar, código QR y enlace de pago.",
+    icon: "heart",
+    itemLabel: "medio de pago",
+    fields: fieldsOf("donacion"),
+  },
+];
+
+export function getPageType(key: string): PageTypeDef {
+  return PAGE_TYPES.find((t) => t.key === key) ?? PAGE_TYPES[0];
+}
+
+/** Tipo sugerido según dónde se ubica la página (siempre se puede cambiar). */
+export const SUGGESTED_TYPE: Record<GroupKey, PageTypeKey> = {
+  servicios: "services",
+  tienda: "products",
+  recomendaciones: "recommend",
+  truchadas: "bad",
+  frases: "quotes",
+  cielinfier: "page",
+  mas: "page",
+};
+
+/** Dirección base de cada sección: “Emprendedores” en Recomendaciones → /Recomendacion/Emprendedores */
+export const GROUP_BASE: Record<GroupKey, string> = {
+  servicios: "/Servicios",
+  tienda: "/Tienda",
+  recomendaciones: "/Recomendacion",
+  truchadas: "/Truchadas",
+  frases: "/Frases",
+  cielinfier: "/Cielinfier",
+  mas: "",
+};
+
+export function isGroupKey(v: string): v is GroupKey {
+  return GROUPS.some((g) => g.key === v);
+}
+
+export function groupLabel(key: string): string {
+  return GROUPS.find((g) => g.key === key)?.label ?? "Más";
+}
+
+/** “Mis trabajos eléctricos” → “MisTrabajosElectricos” */
+export function slugFromTitle(title: string): string {
+  return title
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .split(/[^A-Za-z0-9]+/)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join("")
+    .slice(0, 60);
+}
+
+/** Deja solo letras, números y guiones (respeta mayúsculas). */
+export function cleanSlug(input: string): string {
+  return input
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^A-Za-z0-9-]+/g, "-")
+    .replace(/-{2,}/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+}
+
+export function customPagePath(group: string, slug: string): string {
+  const base = isGroupKey(group) ? GROUP_BASE[group] : "";
+  return `${base}/${slug}`;
+}
+
+export function customKey(id: number): string {
+  return `c${id}`;
+}
+
+export interface CustomPageRecord {
+  id: number;
+  slug: string;
+  title: string;
+  subtitle: string;
+  imageUrl: string;
+  pageType: string;
+  menuGroup: string;
+  icon: string;
+}
+
+export interface CustomPageInfo {
+  key: string;
+  type: PageTypeDef;
+  group: GroupKey;
+  path: string;
+  icon: IconName;
+  /** Definición de la lista (null si es una “Página libre”) */
+  def: SectionDef | null;
+}
+
+export function describeCustomPage(rec: CustomPageRecord): CustomPageInfo {
+  const type = getPageType(rec.pageType || "page");
+  const group: GroupKey = isGroupKey(rec.menuGroup) ? rec.menuGroup : "mas";
+  const path = customPagePath(group, rec.slug || `Pagina-${rec.id}`);
+  const icon: IconName = isIconName(rec.icon) ? rec.icon : type.icon;
+  const key = customKey(rec.id);
+  const name = rec.title || rec.slug;
+  const def: SectionDef | null =
+    type.key === "page"
+      ? null
+      : {
+          key,
+          path,
+          group,
+          navLabel: name,
+          title: name,
+          intro: rec.subtitle,
+          image: rec.imageUrl || undefined,
+          layout: type.key,
+          icon,
+          itemLabel: type.itemLabel,
+          fields: type.fields,
+          categories: type.categories,
+          categoryFree: true,
+          detail: type.detail,
+        };
+  return { key, type, group, path, icon, def };
+}
+
+const GROUP_TABS: Partial<Record<GroupKey, string[]>> = {
+  frases: ["frases", "colmos", "poesias"],
+  cielinfier: ["cielinfier-personajes", "cielinfier-historia", "cielinfier-proceso"],
+};
+
+/** Pestañas base de cada sección del menú (las páginas nuevas se agregan al final). */
+export function groupTabKeys(group: GroupKey): string[] | null {
+  const hub = HUBS.find((h) => h.group === group);
+  if (hub) return [hub.key, ...hub.children];
+  return GROUP_TABS[group] ?? null;
 }
