@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import type { CSSProperties, ReactNode } from "react";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "@fontsource-variable/inter";
 import "@fontsource/rajdhani/500.css";
 import "@fontsource/rajdhani/600.css";
@@ -30,7 +31,10 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const accent = /^#[0-9a-f]{3,8}$/i.test(s.accentColor) ? s.accentColor : "#b3121f";
   return (
     <html lang="es" style={{ "--accent": accent } as CSSProperties}>
-      <body className="min-h-screen font-sans antialiased">{children}</body>
+      <body className="min-h-screen font-sans antialiased">
+        {children}
+        <SpeedInsights />
+      </body>
     </html>
   );
 }
