@@ -7,6 +7,7 @@ import "@fontsource/rajdhani/700.css";
 import "@fontsource/zen-dots";
 import "./globals.css";
 import { getSettings } from "@/lib/data";
+import { Analytics } from "@vercel/analytics/next";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +31,10 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const accent = /^#[0-9a-f]{3,8}$/i.test(s.accentColor) ? s.accentColor : "#b3121f";
   return (
     <html lang="es" style={{ "--accent": accent } as CSSProperties}>
-      <body className="min-h-screen font-sans antialiased">{children}</body>
+      <body className="min-h-screen font-sans antialiased">
+        {children}
+        <Analytics />
+      </body>
     </html>
   );
 }
