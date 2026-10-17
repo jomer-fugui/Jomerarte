@@ -36,7 +36,7 @@ export function LogoMark({ className, idPrefix = "jw" }: { className?: string; i
       >
         <text textAnchor="middle">
           <textPath href={`#${top}`} startOffset="50%">
-            誤解された天才
+            JOMER
           </textPath>
         </text>
         <text textAnchor="middle">
