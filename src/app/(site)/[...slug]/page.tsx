@@ -1,12 +1,21 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { isAdmin } from "@/lib/auth";
-import { getCustomSections, getItem, getItems, getPageTexts, getSettings, resolveCustomPath } from "@/lib/data";
-import { excerpt } from "@/lib/format";
+import {
+  getCustomSections,
+  getItem,
+  getItems,
+  getPageTexts,
+  getSettings,
+  resolveCustomPath,
+  type CustomSection,
+} from "@/lib/data";
+import { excerpt, foldText } from "@/lib/format";
 import { buildSubsiteTabs, buildTabs } from "@/lib/nav";
 import { resolvePath, type GroupKey } from "@/lib/sections";
-import { getCurrentSite } from "@/lib/site";
+import { getCurrentSite, type SiteContext } from "@/lib/site";
 import { CustomPageView, HubView, ItemDetailView, SectionPage, itemPath } from "@/components/views/PageViews";
+import { SubsiteHome } from "@/components/views/SubsiteHome";
 
 export const dynamic = "force-dynamic";
 
@@ -15,28 +24,49 @@ type Props = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
+function decode(s: string): string {
+  try {
+    return decodeURIComponent(s);
+  } catch {
+    return s;
+  }
+}
+
 function toPath(slug: string[]): string {
-  return (
-    "/" +
-    slug
-      .map((s) => {
-        try {
-          return decodeURIComponent(s);
-        } catch {
-          return s;
-        }
-      })
-      .join("/")
-  );
+  return "/" + slug.map(decode).join("/");
+}
+
+/**
+ * Prefijos que agregaba la versión ANTIGUA de src/proxy.ts en los subdominios
+ * (frases.jomerarte.com/Poesias llegaba como /Frases/Poesias). Si ese archivo viejo sigue en el
+ * repositorio, se quita el prefijo para que las páginas funcionen igual y no den error 404.
+ */
+const LEGACY_PREFIX: Record<string, string> = { frases: "frases", cielinfier: "cielinfier" };
+
+function resolveRequest(slug: string[], site: SiteContext, customs: CustomSection[], admin: boolean) {
+  const list = admin ? customs : customs.filter((c) => c.visible);
+  let path = toPath(slug);
+  // Primero las páginas fijas (solo sitio principal); después las creadas desde el panel
+  const fixed = site.isMain ? resolvePath(path) : null;
+  let customMatch = fixed ? null : resolveCustomPath(path, list);
+  let legacyHome = false;
+  if (!site.isMain && !customMatch && slug.length > 0 && foldText(decode(slug[0])) === LEGACY_PREFIX[site.slug]) {
+    const rest = slug.slice(1);
+    path = toPath(rest);
+    if (rest.length === 0) legacyHome = true;
+    else customMatch = resolveCustomPath(path, list);
+    console.warn(
+      `[subdominios] Llegó la dirección antigua “${toPath(slug)}” en ${site.slug}. Sube el archivo nuevo src/proxy.ts (o borra el viejo) en tu repositorio.`,
+    );
+  }
+  return { r: fixed ?? customMatch, customMatch, path, legacyHome };
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const path = toPath(slug);
   const [site, pages, customs, admin] = await Promise.all([getCurrentSite(), getPageTexts(), getCustomSections(), isAdmin()]);
-  const visible = customs.filter((c) => c.visible);
-  // Los subdominios no tienen las secciones fijas del sitio principal
-  const r = (site.isMain ? resolvePath(path) : null) ?? resolveCustomPath(path, admin ? customs : visible);
+  const { r, legacyHome } = resolveRequest(slug, site, customs, admin);
+  if (legacyHome) return {};
   if (!r) return { title: "Página no encontrada" };
 
   if (r.kind === "detail") {
@@ -69,7 +99,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function CatchAllPage({ params, searchParams }: Props) {
   const [{ slug }, sp] = await Promise.all([params, searchParams]);
-  const path = toPath(slug);
   const [site, settings, pages, admin, customs] = await Promise.all([
     getCurrentSite(),
     getSettings(),
@@ -77,11 +106,12 @@ export default async function CatchAllPage({ params, searchParams }: Props) {
     isAdmin(),
     getCustomSections(),
   ]);
+  const category = typeof sp.cat === "string" ? sp.cat : undefined;
+  const query = typeof sp.q === "string" ? sp.q : undefined;
   const visibleCustoms = customs.filter((c) => c.visible);
-  // Primero las páginas fijas (solo sitio principal); después las creadas desde el panel (ocultas solo para el administrador)
-  const fixed = site.isMain ? resolvePath(path) : null;
-  const customMatch = fixed ? null : resolveCustomPath(path, admin ? customs : visibleCustoms);
-  const r = fixed ?? customMatch;
+  const { r, customMatch, path, legacyHome } = resolveRequest(slug, site, customs, admin);
+
+  if (legacyHome) return <SubsiteHome category={category} query={query} />;
   if (!r) notFound();
 
   if (r.kind !== "detail" && path !== r.canonical) redirect(r.canonical);
@@ -118,7 +148,6 @@ export default async function CatchAllPage({ params, searchParams }: Props) {
     return <ItemDetailView section={section} item={item} pages={pages} settings={settings} admin={admin} />;
   }
 
-  const category = typeof sp.cat === "string" ? sp.cat : undefined;
   const items = await getItems(section.key);
   const text = pages[section.key] ?? {
     key: section.key,
@@ -138,6 +167,7 @@ export default async function CatchAllPage({ params, searchParams }: Props) {
       tabs={tabsFor(section.key, section.group)}
       admin={admin}
       category={category}
+      query={query}
       eyebrow={eyebrow}
       extra={customMatch?.kind === "section" ? customMatch.custom.item : undefined}
     />
