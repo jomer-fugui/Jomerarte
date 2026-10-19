@@ -35,6 +35,19 @@ export const SITE_TEMPLATES: SiteTemplate[] = [
     pages: [],
   },
   {
+    key: "juegos",
+    label: "Juegos",
+    description: "Catálogo de juegos con buscador, categorías y descargas.",
+    icon: "gamepad",
+    tagline: "Juegos para descargar",
+    heroText:
+      "Encuentra tu próximo juego: búscalo por nombre o categoría y descárgalo por Mediafire, Google Drive, MEGA y más.",
+    pages: [
+      { title: "Juegos", slug: "Juegos", type: "games", intro: "Todos los juegos. Usa el buscador o filtra por categoría.", home: true },
+      { title: "Novedades", slug: "Novedades", type: "devlog", intro: "Actualizaciones y juegos nuevos." },
+    ],
+  },
+  {
     key: "frases",
     label: "Frases y poesías",
     description: "Páginas de Frases, Preguntas y Poesías.",

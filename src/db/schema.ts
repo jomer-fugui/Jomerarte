@@ -11,6 +11,7 @@ import {
   timestamp,
   varchar,
 } from "drizzle-orm/pg-core";
+import type { ItemLink } from "@/lib/links";
 
 const bytea = customType<{ data: Buffer; driverData: Buffer }>({
   dataType() {
@@ -32,7 +33,9 @@ export const items = pgTable(
     /** "" = sitio principal; si no, el subdominio al que pertenece */
     site: varchar("site", { length: 63 }).notNull().default(""),
     section: varchar("section", { length: 64 }).notNull(),
+    /** Primera categoría (compatibilidad); la lista completa está en `categories` */
     category: varchar("category", { length: 160 }).notNull().default(""),
+    categories: jsonb("categories").$type<string[]>().notNull().default([]),
     slug: varchar("slug", { length: 160 }).notNull().default(""),
     title: text("title").notNull().default(""),
     subtitle: text("subtitle").notNull().default(""),
@@ -42,6 +45,8 @@ export const items = pgTable(
     videoUrl: text("video_url").notNull().default(""),
     linkUrl: text("link_url").notNull().default(""),
     linkLabel: text("link_label").notNull().default(""),
+    /** Botones con nombre personalizado (ej: “Descargar por Mediafire”) */
+    links: jsonb("links").$type<ItemLink[]>().notNull().default([]),
     platform: varchar("platform", { length: 40 }).notNull().default(""),
     price: text("price").notNull().default(""),
     unit: text("unit").notNull().default(""),

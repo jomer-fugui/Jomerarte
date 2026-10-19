@@ -5,8 +5,10 @@ import Link from "next/link";
 import { Loader2, Wand2 } from "lucide-react";
 import { saveItemAction, type FormState } from "@/app/admin/actions";
 import { PLATFORMS, detectPlatform } from "@/lib/platforms";
+import type { ItemLink } from "@/lib/links";
 import type { FieldKey, SectionDef } from "@/lib/sections";
 import { cn } from "@/lib/format";
+import { CategoryPicker, LinksEditor } from "./fields";
 import { GalleryInput, MediaInput } from "./MediaInput";
 import { SubmitButton } from "./SubmitButton";
 
@@ -15,11 +17,13 @@ export type ItemValues = {
   subtitle: string;
   content: string;
   category: string;
+  categories: string[];
   imageUrl: string;
   gallery: string[];
   videoUrl: string;
   linkUrl: string;
   linkLabel: string;
+  links: ItemLink[];
   platform: string;
   price: string;
   unit: string;
@@ -35,11 +39,13 @@ const EMPTY: ItemValues = {
   subtitle: "",
   content: "",
   category: "",
+  categories: [],
   imageUrl: "",
   gallery: [],
   videoUrl: "",
   linkUrl: "",
   linkLabel: "",
+  links: [],
   platform: "",
   price: "",
   unit: "",
@@ -67,20 +73,29 @@ export function ItemForm({
   section,
   item,
   site,
+  suggestions = [],
 }: {
   section: Pick<SectionDef, "key" | "fields" | "categories" | "itemLabel" | "layout">;
   item: (ItemValues & { id: number }) | null;
   /** Sitio en el que se abrió el formulario (evita guardar en otro si se cambia de sitio en otra pestaña) */
   site?: string;
+  /** Categorías que ya se usan en esta sección (para sugerirlas) */
+  suggestions?: string[];
 }) {
   const [state, formAction] = useActionState<FormState, FormData>(saveItemAction, null);
-  const [v, setV] = useState<ItemValues>(item ? { ...EMPTY, ...item } : EMPTY);
+  const [v, setV] = useState<ItemValues>(() => {
+    if (!item) return EMPTY;
+    const cats = item.categories?.length ? item.categories : item.category ? [item.category] : [];
+    return { ...EMPTY, ...item, categories: cats, links: item.links ?? [] };
+  });
   const [fetching, setFetching] = useState(false);
   const [autoMsg, setAutoMsg] = useState("");
   const f = section.fields;
   const has = (k: FieldKey) => Boolean(f[k]);
   const set = <K extends keyof ItemValues>(k: K, val: ItemValues[K]) => setV((p) => ({ ...p, [k]: val }));
-  const longText = ["story", "custom", "poems", "songs", "characters", "devlog", "inventions"].includes(section.layout);
+  const multiCategory = has("category") && section.layout !== "prices";
+  const categorySuggestions = Array.from(new Set([...(section.categories ?? []), ...suggestions]));
+  const longText = ["story", "custom", "poems", "songs", "characters", "devlog", "inventions", "games"].includes(section.layout);
 
   async function autofill() {
     if (!v.linkUrl) return;
@@ -165,6 +180,8 @@ export function ItemForm({
       {site !== undefined && <input type="hidden" name="__site" value={site} />}
       {item && <input type="hidden" name="id" value={item.id} />}
       <input type="hidden" name="gallery" value={JSON.stringify(v.gallery)} />
+      {multiCategory && <input type="hidden" name="categories" value={JSON.stringify(v.categories)} />}
+      {has("links") && <input type="hidden" name="links" value={JSON.stringify(v.links)} />}
       {!has("linkUrl") && has("platform") && <input type="hidden" name="platform" value={v.platform} />}
 
       {state?.error && (
@@ -180,49 +197,41 @@ export function ItemForm({
             <input name="title" value={v.title} onChange={(e) => set("title", e.target.value)} className="input" />
           </Field>
         )}
-        {has("slug") && (
-          <Field label={f.slug} hint="Solo letras, números y guiones. Respeta mayúsculas (ej: Contacto, MisTrabajos).">
-            <div className="flex items-center overflow-hidden rounded-lg border border-white/10 bg-zinc-950/80">
-              <span className="pl-3 text-sm text-zinc-500">jomerarte.com/</span>
-              <input
-                name="slug"
-                value={v.slug}
-                onChange={(e) => set("slug", e.target.value)}
-                className="w-full bg-transparent px-1 py-2.5 text-sm text-zinc-100 focus:outline-none"
-              />
-            </div>
-          </Field>
-        )}
         {has("subtitle") && (
           <Field label={f.subtitle}>
             <input name="subtitle" value={v.subtitle} onChange={(e) => set("subtitle", e.target.value)} className="input" />
           </Field>
         )}
-        {has("category") && (
-          <Field label={f.category}>
-            <input
-              name="category"
-              value={v.category}
-              onChange={(e) => set("category", e.target.value)}
-              placeholder="Escribe o elige una"
-              className="input"
-            />
-            {section.categories && section.categories.length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {section.categories.map((c) => (
-                  <button
-                    key={c}
-                    type="button"
-                    onClick={() => set("category", c)}
-                    className={cn("chip hover:border-white/30", v.category === c && "chip-active")}
-                  >
-                    {c}
-                  </button>
-                ))}
-              </div>
-            )}
-          </Field>
-        )}
+        {has("category") &&
+          (multiCategory ? (
+            <Field label={f.category} hint="Toca las sugerencias para agregarlas o escribe categorías nuevas. Puedes elegir varias.">
+              <CategoryPicker value={v.categories} onChange={(c) => set("categories", c)} suggestions={categorySuggestions} />
+            </Field>
+          ) : (
+            <Field label={f.category}>
+              <input
+                name="category"
+                value={v.category}
+                onChange={(e) => set("category", e.target.value)}
+                placeholder="Escribe o elige una"
+                className="input"
+              />
+              {categorySuggestions.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {categorySuggestions.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => set("category", c)}
+                      className={cn("chip hover:border-white/30", v.category === c && "chip-active")}
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </Field>
+          ))}
         {has("content") && (
           <Field label={f.content} hint={FORMAT_HINT}>
             <textarea
@@ -239,7 +248,13 @@ export function ItemForm({
           <div className="grid gap-4 sm:grid-cols-2">
             {has("price") && (
               <Field label={f.price}>
-                <input name="price" value={v.price} onChange={(e) => set("price", e.target.value)} placeholder="$ 0" className="input" />
+                <input
+                  name="price"
+                  value={v.price}
+                  onChange={(e) => set("price", e.target.value)}
+                  placeholder={section.layout === "games" ? "Gratis" : "$ 0"}
+                  className="input"
+                />
               </Field>
             )}
             {has("unit") && (
@@ -270,6 +285,19 @@ export function ItemForm({
 
         {section.layout !== "products" && linkBlock}
       </section>
+
+      {has("links") && (
+        <section className="card space-y-4 p-6">
+          <div>
+            <h2 className="font-display text-lg font-bold tracking-wide text-white uppercase">{f.links}</h2>
+            <p className="text-sm text-zinc-500">
+              Cada botón tiene el nombre que tú quieras, por ejemplo “Descargar por Mediafire” o “Descargar por Google Drive”.
+              El color y el ícono se ponen solos según el servicio.
+            </p>
+          </div>
+          <LinksEditor value={v.links} onChange={(l) => set("links", l)} />
+        </section>
+      )}
 
       {(has("imageUrl") || has("videoUrl") || has("gallery")) && (
         <section className="card space-y-5 p-6">

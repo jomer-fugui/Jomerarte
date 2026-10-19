@@ -13,6 +13,7 @@ export type FieldKey =
   | "unit"
   | "rating"
   | "location"
+  | "links"
   | "slug";
 
 export type Layout =
@@ -31,6 +32,7 @@ export type Layout =
   | "inventions"
   | "prices"
   | "donations"
+  | "games"
   | "custom";
 
 export type GroupKey =
@@ -49,6 +51,7 @@ export const ICON_NAMES = [
   "cpu", "users", "quote", "question", "laugh", "feather", "music", "book", "newspaper", "megaphone",
   "image", "video", "palette", "gamepad", "swords", "flame", "skull", "alert", "ban", "link",
   "list", "download", "gift", "map", "phone", "calendar", "car", "leaf", "coffee", "home",
+  "cloud", "drive", "smartphone", "code", "play", "chat", "monitor", "search",
 ] as const;
 
 export type IconName = (typeof ICON_NAMES)[number];
@@ -112,6 +115,7 @@ const SERVICE_FIELDS: SectionDef["fields"] = {
   unit: "Unidad (ej: por boca, por cámara)",
   linkUrl: "Enlace externo (opcional)",
   linkLabel: "Texto del botón del enlace",
+  links: "Botones adicionales (descargas, catálogos, redes…)",
 };
 
 const PRODUCT_FIELDS: SectionDef["fields"] = {
@@ -125,6 +129,7 @@ const PRODUCT_FIELDS: SectionDef["fields"] = {
   platform: "Plataforma donde se vende",
   linkUrl: "Enlace de compra (Mercado Libre, Hotmart, AliExpress, Amazon…)",
   linkLabel: "Texto del botón (opcional)",
+  links: "Más enlaces de compra o descarga",
 };
 
 const RECOMMEND_FIELDS: SectionDef["fields"] = {
@@ -137,6 +142,7 @@ const RECOMMEND_FIELDS: SectionDef["fields"] = {
   imageUrl: "Imagen o logo",
   linkUrl: "Enlace (web, Instagram, Google Maps…)",
   linkLabel: "Texto del botón",
+  links: "Más enlaces (opcional)",
 };
 
 const BAD_FIELDS: SectionDef["fields"] = {
@@ -549,6 +555,7 @@ export const SECTIONS: SectionDef[] = [
       imageUrl: "Imagen principal",
       gallery: "Galería (bocetos, fotos y videos)",
       videoUrl: "Video destacado",
+      links: "Enlaces (opcional)",
     },
     categories: ["Cielo", "Infierno", "Tierra", "Neutral"],
     categoryFree: true,
@@ -572,6 +579,7 @@ export const SECTIONS: SectionDef[] = [
       imageUrl: "Imagen",
       gallery: "Galería",
       videoUrl: "Video",
+      links: "Enlaces (opcional)",
     },
     detail: true,
   },
@@ -594,6 +602,7 @@ export const SECTIONS: SectionDef[] = [
       imageUrl: "Imagen principal",
       gallery: "Galería (fotos y videos)",
       videoUrl: "Video",
+      links: "Enlaces (opcional)",
     },
     categories: ["Guion", "Arte", "Animación", "Programación", "Música"],
     categoryFree: true,
@@ -638,6 +647,7 @@ export const SECTIONS: SectionDef[] = [
       videoUrl: "Video (YouTube) o audio (MP3)",
       platform: "Plataforma",
       linkUrl: "Escuchar en (Spotify, YouTube…)",
+      links: "Más enlaces (descargar, otras plataformas…)",
     },
     detail: true,
   },
@@ -661,6 +671,7 @@ export const SECTIONS: SectionDef[] = [
       gallery: "Galería (fotos y videos)",
       videoUrl: "Video destacado",
       linkUrl: "Enlace (opcional)",
+      links: "Botones con nombre (planos, descargas, compra…)",
     },
     categories: ["Idea", "Prototipo", "En desarrollo", "Terminado"],
     categoryFree: true,
@@ -711,6 +722,7 @@ export const SECTIONS: SectionDef[] = [
       platform: "Plataforma",
       linkUrl: "Enlace de pago",
       linkLabel: "Texto del botón",
+      links: "Otros enlaces de pago (opcional)",
     },
   },
   {
@@ -845,6 +857,46 @@ export function newItemLabel(section: Pick<SectionDef, "itemLabel">): string {
   return `${FEMININE.has(section.itemLabel) ? "Nueva" : "Nuevo"} ${section.itemLabel}`;
 }
 
+/** Categorías sugeridas para juegos (se pueden elegir varias y crear nuevas). */
+export const GAME_CATEGORIES = [
+  "Acción",
+  "Aventura",
+  "RPG",
+  "Estrategia",
+  "Disparos",
+  "Terror",
+  "Carreras",
+  "Deportes",
+  "Lucha",
+  "Plataformas",
+  "Puzzle",
+  "Simulación",
+  "Mundo abierto",
+  "Multijugador",
+  "Indie",
+  "Retro",
+  "Emuladores",
+  "PC",
+  "Android",
+  "Online",
+  "Offline",
+];
+
+const GAME_FIELDS: SectionDef["fields"] = {
+  title: "Nombre del juego",
+  subtitle: "Plataforma y versión (ej: PC · Android · v1.2)",
+  category: "Categorías (puedes elegir varias)",
+  content: "Descripción, requisitos e instrucciones de instalación",
+  imageUrl: "Portada del juego",
+  gallery: "Capturas de pantalla y videos",
+  videoUrl: "Tráiler (YouTube o archivo)",
+  links: "Botones de descarga (Mediafire, Google Drive, MEGA…)",
+  unit: "Tamaño (ej: 1,5 GB)",
+  price: "Precio (opcional: “Gratis” o el precio)",
+  location: "Desarrollador / año (opcional)",
+  rating: "Puntuación",
+};
+
 /* ═════════════ Páginas personalizadas (creadas desde el panel) ═════════════ */
 
 export type PageTypeKey = "page" | Exclude<Layout, "custom">;
@@ -872,6 +924,17 @@ export const PAGE_TYPES: PageTypeDef[] = [
     icon: "file",
     itemLabel: "",
     fields: {},
+  },
+  {
+    key: "games",
+    label: "Juegos",
+    description:
+      "Catálogo de juegos con buscador, varias categorías por juego, capturas, tráiler y botones de descarga (Mediafire, Google Drive, MEGA…).",
+    icon: "gamepad",
+    itemLabel: "juego",
+    fields: GAME_FIELDS,
+    categories: GAME_CATEGORIES,
+    detail: true,
   },
   {
     key: "recommend",

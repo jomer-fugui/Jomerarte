@@ -5,6 +5,7 @@ import type { NavGroup } from "@/lib/nav";
 import { cn } from "@/lib/format";
 import { socialLinks } from "@/lib/social";
 import { SiteLogo } from "./Logo";
+import { HeaderSearch } from "./HeaderSearch";
 import { MobileNav } from "./MobileNav";
 import { Icon } from "./icons";
 
@@ -60,6 +61,7 @@ export function Header({ settings, nav, donateHref }: { settings: Settings; nav:
           )}
         </nav>
 
+        <HeaderSearch />
         {donateHref && (
           <Link href={donateHref} className="btn-primary ml-2 hidden xl:inline-flex">
             <Heart className="h-4 w-4" /> Donar

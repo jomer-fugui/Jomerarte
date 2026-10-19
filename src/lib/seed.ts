@@ -8,8 +8,9 @@ import { ensureLegacySubsites } from "./sites";
  * Sube SCHEMA_VERSION cuando cambie la estructura para que se vuelva a aplicar.
  *  v3: páginas personalizadas con tipo, ubicación e ícono + correcciones de textos.
  *  v4: subdominios independientes (tabla "sites" y columna "site" en el contenido y los ajustes).
+ *  v5: varias categorías por publicación y botones con nombre personalizado (descargas).
  */
-const SCHEMA_VERSION = "4";
+const SCHEMA_VERSION = "5";
 
 const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS "sites" (
@@ -21,6 +22,7 @@ CREATE TABLE IF NOT EXISTS "items" (
   "site" varchar(63) DEFAULT '' NOT NULL,
   "section" varchar(64) NOT NULL,
   "category" varchar(160) DEFAULT '' NOT NULL,
+  "categories" jsonb DEFAULT '[]'::jsonb NOT NULL,
   "slug" varchar(160) DEFAULT '' NOT NULL,
   "title" text DEFAULT '' NOT NULL,
   "subtitle" text DEFAULT '' NOT NULL,
@@ -30,6 +32,7 @@ CREATE TABLE IF NOT EXISTS "items" (
   "video_url" text DEFAULT '' NOT NULL,
   "link_url" text DEFAULT '' NOT NULL,
   "link_label" text DEFAULT '' NOT NULL,
+  "links" jsonb DEFAULT '[]'::jsonb NOT NULL,
   "platform" varchar(40) DEFAULT '' NOT NULL,
   "price" text DEFAULT '' NOT NULL,
   "unit" text DEFAULT '' NOT NULL,
@@ -49,6 +52,9 @@ ALTER TABLE "items" ADD COLUMN IF NOT EXISTS "menu_group" varchar(60) DEFAULT ''
 ALTER TABLE "items" ALTER COLUMN "menu_group" TYPE varchar(60);
 ALTER TABLE "items" ADD COLUMN IF NOT EXISTS "icon" varchar(32) DEFAULT '' NOT NULL;
 ALTER TABLE "items" ADD COLUMN IF NOT EXISTS "site" varchar(63) DEFAULT '' NOT NULL;
+ALTER TABLE "items" ADD COLUMN IF NOT EXISTS "categories" jsonb DEFAULT '[]'::jsonb NOT NULL;
+ALTER TABLE "items" ADD COLUMN IF NOT EXISTS "links" jsonb DEFAULT '[]'::jsonb NOT NULL;
+UPDATE "items" SET "categories" = jsonb_build_array("category") WHERE "category" <> '' AND "categories" = '[]'::jsonb;
 CREATE INDEX IF NOT EXISTS "items_site_section_idx" ON "items" USING btree ("site","section","sort_order");
 DROP INDEX IF EXISTS "items_section_idx";
 CREATE TABLE IF NOT EXISTS "pages" (
@@ -154,7 +160,7 @@ async function run(): Promise<void> {
     const rows = SEED_ITEMS.map((it) => {
       const n = counters[it.section] ?? 0;
       counters[it.section] = n + 1;
-      return { ...it, sortOrder: n };
+      return { ...it, categories: it.category ? [it.category] : [], sortOrder: n };
     });
     await tx.insert(items).values(rows);
   });

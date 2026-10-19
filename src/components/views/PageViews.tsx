@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, MapPin } from "lucide-react";
+import { ArrowLeft, ArrowRight, Download, Gamepad2, HardDrive, MapPin, Tag, User } from "lucide-react";
 import { getItems, type CustomSection, type Item, type PageText } from "@/lib/data";
 import type { Settings } from "@/lib/defaults";
-import { excerpt } from "@/lib/format";
+import { excerpt, itemCategories } from "@/lib/format";
 import { buildTabs, groupEntries, type Tab } from "@/lib/nav";
 import {
   GROUPS,
@@ -15,6 +15,7 @@ import {
   type SectionDef,
 } from "@/lib/sections";
 import { Gallery } from "../client";
+import { LinkButtons } from "../LinkButtons";
 import { MediaPlayer } from "../media";
 import {
   AdminFab,
@@ -82,6 +83,7 @@ export function SectionPage({
   tabs,
   admin,
   category,
+  query,
   extra,
   eyebrow,
 }: {
@@ -93,12 +95,13 @@ export function SectionPage({
   tabs: Tab[];
   admin: boolean;
   category?: string;
-  /** Página personalizada: texto, video, galería y botón extra */
+  query?: string;
+  /** Página personalizada: texto, video, galería y botones extra */
   extra?: Item;
   /** Texto pequeño sobre el título (por defecto, la sección del menú) */
   eyebrow?: string;
 }) {
-  const hasExtra = Boolean(extra && (extra.content || extra.videoUrl || extra.gallery.length > 0));
+  const hasExtra = Boolean(extra && (extra.content || extra.videoUrl || extra.gallery.length > 0 || extra.links.length > 0));
   const actions =
     section.layout === "services" || extra?.linkUrl ? (
       <>
@@ -129,11 +132,12 @@ export function SectionPage({
         {hasExtra && extra && (
           <div className="mb-12 space-y-8">
             <RichText text={extra.content} className="max-w-3xl text-lg text-zinc-300" />
+            <LinkButtons links={extra.links} />
             {extra.videoUrl && <MediaPlayer url={extra.videoUrl} title={text.title} className="max-w-4xl" />}
             {extra.gallery.length > 0 && <Gallery urls={extra.gallery} title={text.title} />}
           </div>
         )}
-        <SectionBody section={section} items={items} settings={settings} category={category} admin={admin} />
+        <SectionBody section={section} items={items} settings={settings} category={category} query={query} admin={admin} />
       </div>
       {admin && <AdminFab href={`/admin/s/${section.key}`} />}
     </>
@@ -273,8 +277,18 @@ export async function ItemDetailView({
   const prev = idx > 0 ? all[idx - 1] : undefined;
   const next = idx >= 0 && idx < all.length - 1 ? all[idx + 1] : undefined;
   const others = all.filter((i) => i.id !== item.id).slice(0, 4);
+  const isGame = section.layout === "games";
   const isCommerce = section.layout === "products" || section.layout === "services";
   const crumbs = [...crumbsFor(section, pages), { href: section.path, label: text.navLabel }];
+  const cats = itemCategories(item);
+  const specs = isGame
+    ? [
+        { icon: Gamepad2, label: "Plataforma", value: item.subtitle },
+        { icon: HardDrive, label: "Tamaño", value: item.unit },
+        { icon: User, label: "Desarrollador", value: item.location },
+        { icon: Tag, label: "Precio", value: item.price },
+      ].filter((s) => s.value)
+    : [];
 
   return (
     <>
@@ -297,26 +311,48 @@ export async function ItemDetailView({
               ))}
             </nav>
             <div className="flex flex-wrap items-center gap-2">
-              {item.category && <span className="chip">{item.category}</span>}
+              {cats.map((c) => (
+                <Link key={c} href={`${section.path}?cat=${encodeURIComponent(c)}`} className="chip hover:border-accent hover:text-white">
+                  {c}
+                </Link>
+              ))}
               {item.platform && <PlatformBadge platform={item.platform} />}
               <Stars value={item.rating} bad={section.layout === "bad"} />
             </div>
             <h1 className="mt-4 font-display text-4xl leading-[1.05] font-bold tracking-wide text-white uppercase sm:text-5xl">
               {item.title}
             </h1>
-            {item.subtitle && <p className="mt-3 text-lg font-medium text-accent-light">{item.subtitle}</p>}
-            {item.location && (
+            {item.subtitle && !isGame && <p className="mt-3 text-lg font-medium text-accent-light">{item.subtitle}</p>}
+            {item.location && !isGame && (
               <p className="mt-3 inline-flex items-center gap-1.5 text-sm text-zinc-400">
                 <MapPin className="h-4 w-4 text-accent-light" /> {item.location}
               </p>
             )}
-            {item.price && <PriceTag price={item.price} unit={item.unit} className="mt-6" />}
+            {specs.length > 0 && (
+              <dl className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4">
+                {specs.map(({ icon: I, label, value }) => (
+                  <div key={label} className="rounded-xl border border-white/10 bg-black/30 p-3">
+                    <dt className="flex items-center gap-1.5 text-[11px] font-semibold tracking-widest text-zinc-500 uppercase">
+                      <I className="h-3.5 w-3.5" /> {label}
+                    </dt>
+                    <dd className="mt-1 text-sm font-semibold break-words text-white">{value}</dd>
+                  </div>
+                ))}
+              </dl>
+            )}
+            {item.price && !isGame && <PriceTag price={item.price} unit={item.unit} className="mt-6" />}
             <div className="mt-7 flex flex-wrap gap-3">
+              {isGame && item.links.length > 0 && (
+                <a href="#descargas" className="btn-primary px-6 py-3">
+                  <Download className="h-4 w-4" /> Descargar
+                  {item.links.length > 1 && <span className="opacity-75">({item.links.length} opciones)</span>}
+                </a>
+              )}
               {item.linkUrl &&
                 (isCommerce ? (
                   <BuyButton url={item.linkUrl} platform={item.platform} label={item.linkLabel} className="px-5 py-3 text-sm" />
                 ) : (
-                  <SmartLink href={item.linkUrl} className="btn-primary">
+                  <SmartLink href={item.linkUrl} className={isGame ? "btn-ghost" : "btn-primary"}>
                     {item.linkLabel || "Ver enlace"}
                   </SmartLink>
                 ))}
@@ -355,14 +391,20 @@ export async function ItemDetailView({
         )}
         {item.videoUrl && item.imageUrl && (
           <section>
-            <SectionHeading title="Video" />
+            <SectionHeading title={isGame ? "Tráiler" : "Video"} />
             <MediaPlayer url={item.videoUrl} title={item.title} className="mt-6 max-w-4xl" />
           </section>
         )}
         {item.gallery.length > 0 && (
           <section>
-            <SectionHeading title="Galería" />
+            <SectionHeading title={isGame ? "Capturas" : "Galería"} />
             <Gallery urls={item.gallery} title={item.title} className="mt-6" />
+          </section>
+        )}
+        {item.links.length > 0 && (
+          <section id="descargas" className="scroll-mt-24">
+            <SectionHeading title={isGame ? "Descargas" : "Enlaces"} />
+            <LinkButtons links={item.links} size="lg" className="mt-6 max-w-4xl" />
           </section>
         )}
 
@@ -437,6 +479,7 @@ export function CustomPageView({
       <SubNav tabs={tabs} current={custom.key} />
       <div className="container-x space-y-12 py-12">
         <RichText text={page.content} className="max-w-3xl text-lg text-zinc-300" />
+        <LinkButtons links={page.links} />
         {page.videoUrl && <MediaPlayer url={page.videoUrl} title={page.title} className="max-w-4xl" />}
         {page.gallery.length > 0 && <Gallery urls={page.gallery} title={page.title} />}
       </div>

@@ -137,3 +137,17 @@ export function telegramUrl(value: string): string {
   const user = s.replace(/^@/, "").replace(/[^A-Za-z0-9_+]/g, "");
   return user ? `https://t.me/${user}` : "";
 }
+
+/** Minúsculas y sin acentos: “Acción” → “accion”. Se usa para buscar. */
+export function foldText(s: string): string {
+  return (s || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+/** Categorías de un elemento (compatibilidad con la columna antigua de una sola categoría). */
+export function itemCategories(it: { categories?: string[] | null; category?: string | null }): string[] {
+  if (Array.isArray(it.categories) && it.categories.length > 0) return it.categories;
+  return it.category ? [it.category] : [];
+}

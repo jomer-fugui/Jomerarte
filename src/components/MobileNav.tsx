@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import Form from "next/form";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronDown, Heart, House, Menu, X } from "lucide-react";
+import { ChevronDown, Heart, House, Menu, Search, X } from "lucide-react";
 import type { NavGroup } from "@/lib/nav";
 import type { SocialLink } from "@/lib/social";
 import { cn } from "@/lib/format";
@@ -62,6 +63,18 @@ export function MobileNav({
         </div>
 
         <nav className="flex-1 overflow-y-auto overscroll-contain px-3 py-3" aria-label="Secciones">
+          <Form action="/buscar" onSubmit={close} className="relative mb-2">
+            <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+            <input
+              name="q"
+              type="search"
+              required
+              enterKeyHint="search"
+              placeholder="Buscar en el sitio…"
+              aria-label="Buscar en el sitio"
+              className="input pl-9"
+            />
+          </Form>
           <Link
             href="/"
             onClick={close}
@@ -164,7 +177,7 @@ export function MobileNav({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="ml-auto grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-white/10 bg-white/5 text-white xl:hidden"
+        className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-white/10 bg-white/5 text-white xl:hidden"
         aria-label="Abrir menú"
         aria-expanded={open}
       >

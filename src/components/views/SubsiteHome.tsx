@@ -5,6 +5,7 @@ import { getCustomSections, getFeatured, getItems, getPageTexts, getSettings, ty
 import { excerpt } from "@/lib/format";
 import type { SectionDef } from "@/lib/sections";
 import { Gallery } from "../client";
+import { LinkButtons } from "../LinkButtons";
 import { SiteLogo } from "../Logo";
 import { Icon } from "../icons";
 import { MediaPlayer } from "../media";
@@ -12,7 +13,7 @@ import { AdminFab, ContactButton, ItemImage, PlatformBadge, RichText, SectionHea
 import { SectionBody, itemPath } from "./SectionView";
 
 /** Portada de un subdominio: un sitio independiente con su propio nombre, logo, portada y páginas. */
-export async function SubsiteHome() {
+export async function SubsiteHome({ category, query }: { category?: string; query?: string } = {}) {
   const [settings, pages, customs, featured, admin] = await Promise.all([
     getSettings(),
     getPageTexts(),
@@ -81,10 +82,11 @@ export async function SubsiteHome() {
           {home.item.subtitle && <RichText text={home.item.subtitle} className="mt-3 max-w-3xl text-zinc-400" />}
           <div className="mt-8">
             {home.def ? (
-              <SectionBody section={home.def} items={homeItems} settings={settings} admin={admin} />
+              <SectionBody section={home.def} items={homeItems} settings={settings} admin={admin} category={category} query={query} />
             ) : (
               <div className="space-y-10">
                 <RichText text={home.item.content} className="max-w-3xl text-lg text-zinc-300" />
+                <LinkButtons links={home.item.links} />
                 {home.item.videoUrl && <MediaPlayer url={home.item.videoUrl} title={home.item.title} className="max-w-4xl" />}
                 {home.item.gallery.length > 0 && <Gallery urls={home.item.gallery} title={home.item.title} />}
                 {home.item.linkUrl && (

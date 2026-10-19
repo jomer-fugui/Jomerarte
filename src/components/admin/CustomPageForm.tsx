@@ -19,7 +19,9 @@ import {
 } from "@/lib/sections";
 import { cn } from "@/lib/format";
 import { Icon } from "../icons";
+import { LinksEditor } from "./fields";
 import { GalleryInput, MediaInput } from "./MediaInput";
+import type { ItemLink } from "@/lib/links";
 import { SubmitButton } from "./SubmitButton";
 
 export type CustomPageValues = {
@@ -32,6 +34,7 @@ export type CustomPageValues = {
   videoUrl: string;
   linkUrl: string;
   linkLabel: string;
+  links: ItemLink[];
   pageType: PageTypeKey;
   /** Sitio principal: sección fija del menú · Subdominio: nombre libre de la sección ("" = enlace directo) */
   menuGroup: string;
@@ -49,6 +52,7 @@ const EMPTY: CustomPageValues = {
   videoUrl: "",
   linkUrl: "",
   linkLabel: "",
+  links: [],
   pageType: "page",
   menuGroup: "mas",
   icon: "",
@@ -122,6 +126,7 @@ export function CustomPageForm({
       {isMain && <input type="hidden" name="menuGroup" value={v.menuGroup} />}
       <input type="hidden" name="icon" value={v.icon} />
       <input type="hidden" name="gallery" value={JSON.stringify(v.gallery)} />
+      <input type="hidden" name="links" value={JSON.stringify(v.links)} />
 
       {state?.error && (
         <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-200">{state.error}</div>
@@ -302,7 +307,7 @@ export function CustomPageForm({
         </div>
       </Step>
 
-      <Step n={4} title="Fotos, video y botón" hint="Todo es opcional.">
+      <Step n={4} title="Fotos, video y botones" hint="Todo es opcional.">
         <div>
           <label className="label">Galería de fotos y videos</label>
           <GalleryInput value={v.gallery} onChange={(g) => set("gallery", g)} />
@@ -338,6 +343,10 @@ export function CustomPageForm({
               className="input"
             />
           </div>
+        </div>
+        <div>
+          <label className="label">Más botones con nombre personalizado (descargas, redes, catálogos…)</label>
+          <LinksEditor value={v.links} onChange={(l) => set("links", l)} />
         </div>
       </Step>
 
