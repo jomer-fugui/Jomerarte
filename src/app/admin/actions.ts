@@ -35,6 +35,7 @@ import {
 import { SITE_COOKIE, getCurrentSite, getSiteSlugs, type SiteContext } from "@/lib/site";
 import { createSite, deleteSite } from "@/lib/sites";
 import { isBlobUrl } from "@/lib/storage";
+import { cleanLinks, type ItemLink } from "@/lib/links";
 
 export type FormState = { error?: string } | null;
 
@@ -60,6 +61,36 @@ function parseGallery(fd: FormData): string[] {
       .filter((x): x is string => typeof x === "string" && x.trim() !== "")
       .map((x) => x.trim())
       .slice(0, 100);
+  } catch {
+    return [];
+  }
+}
+
+/** Lista de categorías enviada por el formulario (sin repetidas, máximo 20). null si el formulario no la envía. */
+function parseCategories(fd: FormData): string[] | null {
+  const raw = fd.get("categories");
+  if (typeof raw !== "string") return null;
+  let list: unknown;
+  try {
+    list = JSON.parse(raw || "[]");
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(list)) return [];
+  const out: string[] = [];
+  for (const x of list) {
+    if (typeof x !== "string") continue;
+    const c = x.replace(/\s+/g, " ").trim().slice(0, 60);
+    if (c && !out.some((o) => o.toLowerCase() === c.toLowerCase())) out.push(c);
+    if (out.length >= 20) break;
+  }
+  return out;
+}
+
+/** Botones con nombre personalizado enviados por el formulario. */
+function parseLinks(fd: FormData): ItemLink[] {
+  try {
+    return cleanLinks(JSON.parse(str(fd, "links", 100000) || "[]"));
   } catch {
     return [];
   }
@@ -184,11 +215,15 @@ export async function saveItemAction(_prev: FormState, formData: FormData): Prom
   let platform = str(formData, "platform", 40);
   if (!platform && linkUrl && section.fields.platform) platform = detectPlatform(linkUrl);
 
+  const single = str(formData, "category", 160);
+  const categories = parseCategories(formData) ?? (single ? [single] : []);
   const values = {
     title: str(formData, "title", 500),
     subtitle: str(formData, "subtitle", 1000),
     content: str(formData, "content", 100000),
-    category: str(formData, "category", 160),
+    category: (categories[0] ?? "").slice(0, 160),
+    categories,
+    links: parseLinks(formData),
     imageUrl: str(formData, "imageUrl", 2000),
     gallery: parseGallery(formData),
     videoUrl: str(formData, "videoUrl", 2000),
@@ -227,7 +262,7 @@ export async function saveItemAction(_prev: FormState, formData: FormData): Prom
 }
 
 /* ───────────── Páginas personalizadas (tipo + ubicación en el menú) */
-const RESERVED_PATHS = new Set(["admin", "api", "_next", "images", "favicon.ico", "icon.svg", "robots.txt", "sitemap.xml"]);
+const RESERVED_PATHS = new Set(["admin", "api", "_next", "images", "buscar", "favicon.ico", "icon.svg", "robots.txt", "sitemap.xml"]);
 
 export async function saveCustomPageAction(_prev: FormState, formData: FormData): Promise<FormState> {
   await requireAdmin();
@@ -274,6 +309,7 @@ export async function saveCustomPageAction(_prev: FormState, formData: FormData)
     videoUrl: str(formData, "videoUrl", 2000),
     linkUrl: str(formData, "linkUrl", 2000),
     linkLabel: str(formData, "linkLabel", 200),
+    links: parseLinks(formData),
     published: formData.get("published") === "on",
     updatedAt: new Date(),
   };
