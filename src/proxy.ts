@@ -1,52 +1,21 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 
 /**
- * Subdominios:
- *  - frases.jomerarte.com      → /Frases      (frases.jomerarte.com/Preguntas → /Frases/Preguntas)
- *  - cielinfier.jomerarte.com  → /Cielinfier  (cielinfier.jomerarte.com/historia → /Cielinfier/historia)
- * Requiere configurar los subdominios en el DNS apuntando al mismo servidor.
+ * Proxy de Next.js.
+ *
+ * IMPORTANTE: este archivo REEMPLAZA a la versión antigua que redirigía frases.jomerarte.com y
+ * cielinfier.jomerarte.com a secciones del sitio principal (/Frases, /Cielinfier). Esa versión
+ * provocaba errores 404 en esos subdominios. Ahora cada subdominio es un sitio independiente y
+ * se resuelve dentro de la aplicación, así que aquí ya NO se reescribe ninguna dirección.
+ *
+ * Lo único que hace es pedir a los buscadores que no indexen el panel de administración.
  */
-const SUBDOMAINS: Record<string, string> = {
-  frases: "/Frases",
-  cielinfier: "/Cielinfier",
-};
-
-const TOP_LEVEL = new Set([
-  "servicios",
-  "cursos",
-  "tienda",
-  "recomendacion",
-  "recomendaciones",
-  "paginas",
-  "truchadas",
-  "frases",
-  "mispaginas",
-  "cancionesjomer",
-  "cielinfier",
-  "inventos",
-  "preciosservicios",
-  "preciosproductos",
-  "donacion",
-  "admin",
-]);
-
-export function proxy(request: NextRequest) {
-  const host = (request.headers.get("host") || "").toLowerCase();
-  const parts = host.split(".");
-  const prefix = parts.length >= 2 ? SUBDOMAINS[parts[0]] : undefined;
-  if (!prefix) return NextResponse.next();
-
-  const url = request.nextUrl.clone();
-  const first = (url.pathname.split("/")[1] || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase();
-  if (first && TOP_LEVEL.has(first)) return NextResponse.next();
-
-  url.pathname = prefix + (url.pathname === "/" ? "" : url.pathname);
-  return NextResponse.rewrite(url);
+export function proxy() {
+  const response = NextResponse.next();
+  response.headers.set("X-Robots-Tag", "noindex, nofollow");
+  return response;
 }
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|images|favicon.ico|icon.svg|.*\\..*).*)"],
+  matcher: ["/admin/:path*"],
 };
