@@ -167,3 +167,31 @@ En **/admin → Crear página nueva** (o con “+ Página nueva aquí” en cada
 
 En **/admin → Ajustes → Redes sociales** puedes cargar Instagram, Facebook, YouTube, TikTok, X y **Telegram**
 (el enlace `https://t.me/usuario` o simplemente `@usuario`). Aparecen en el pie de página y en el menú del celular.
+
+---
+
+## 8. Juegos, varias categorías, buscador y botones de descarga
+
+- **Tipo de página “Juegos”**: al crear una página (o un subdominio con la plantilla *Juegos*) elige el tipo
+  **Juegos**. Cada juego tiene portada, plataforma, tamaño, desarrollador, precio, puntuación, descripción,
+  tráiler, capturas y **botones de descarga**.
+- **Varias categorías por publicación**: en el formulario toca las categorías sugeridas o escribe nuevas
+  (separadas por comas). Funciona en juegos, productos, frases, poesías, recomendaciones, personajes, etc.
+- **Buscador (lupa)**: los visitantes pueden buscar por nombre o categoría dentro de cada lista (los juegos siempre
+  tienen buscador; las demás listas lo muestran cuando tienen 8 o más elementos) y también en todo el sitio con la
+  lupa de arriba (`/buscar`). Las categorías se pueden tocar para filtrar.
+- **Botones con nombre personalizado**: “Agregar enlace” → escribe el nombre (ej: *Descargar por Mediafire*,
+  *Descargar por Google Drive*) y pega el enlace. El color y el ícono se ponen solos (Mediafire, Google Drive, MEGA,
+  Dropbox, Steam, itch.io, Google Play…).
+
+## 9. Archivos viejos que hay que reemplazar en GitHub
+
+Si subes los archivos arrastrándolos a GitHub, **los archivos que se borraron en una versión nueva siguen en el
+repositorio**. Por eso, sube siempre la carpeta `src` completa. Importante:
+
+| Archivo          | Qué hacer |
+|------------------|-----------|
+| `src/proxy.ts`   | Súbelo de nuevo (reemplaza al viejo). La versión antigua mandaba los subdominios *frases* y *cielinfier* a direcciones que ya no existen y daba **error 404**. |
+
+Para comprobarlo: abre `src/proxy.ts` en GitHub; la versión correcta dice *“este archivo REEMPLAZA a la versión
+antigua”* al principio.
