@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ExternalLink, LayoutList, Trash2 } from "lucide-react";
-import { getAnySection, getCustomSections, getItem, getPageTexts, type Item } from "@/lib/data";
+import { getAnySection, getCustomSections, getItem, getItems, getPageTexts, type Item } from "@/lib/data";
+import { itemCategories } from "@/lib/format";
 import { siteLabel } from "@/lib/hosts";
 import { describeCustomPage, getPageType, isGroupKey, newItemLabel } from "@/lib/sections";
 import { getCurrentSite } from "@/lib/site";
@@ -20,11 +21,13 @@ function toValues(it: Item): ItemValues & { id: number } {
     subtitle: it.subtitle,
     content: it.content,
     category: it.category,
+    categories: itemCategories(it),
     imageUrl: it.imageUrl,
     gallery: Array.isArray(it.gallery) ? it.gallery : [],
     videoUrl: it.videoUrl,
     linkUrl: it.linkUrl,
     linkLabel: it.linkLabel,
+    links: Array.isArray(it.links) ? it.links : [],
     platform: it.platform,
     price: it.price,
     unit: it.unit,
@@ -48,6 +51,7 @@ function toPageValues(it: Item, mainSite: boolean): CustomPageValues & { id: num
     videoUrl: it.videoUrl,
     linkUrl: it.linkUrl,
     linkLabel: it.linkLabel,
+    links: Array.isArray(it.links) ? it.links : [],
     pageType: getPageType(it.pageType || "page").key,
     menuGroup: mainSite ? (isGroupKey(it.menuGroup) ? it.menuGroup : "mas") : it.menuGroup,
     icon: it.icon,
@@ -138,7 +142,8 @@ export default async function EditItemPage({
     item = await getItem(Number(id));
     if (!item || item.section !== key || item.site !== site.slug) notFound();
   }
-  const pages = await getPageTexts();
+  const [pages, siblings] = await Promise.all([getPageTexts(), getItems(key, { all: true })]);
+  const usedCategories = Array.from(new Set(siblings.flatMap((s) => itemCategories(s))));
   const label = pages[key]?.navLabel ?? section.navLabel;
   const publicHref = item ? (section.detail ? itemPath(section.path, item) : section.path) : null;
 
@@ -175,6 +180,7 @@ export default async function EditItemPage({
         }}
         item={item ? toValues(item) : null}
         site={site.slug}
+        suggestions={usedCategories}
       />
 
       {item && (
