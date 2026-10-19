@@ -14,6 +14,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { getAnySection, getCustomSections, getItems, getPageTexts, type CustomSection } from "@/lib/data";
+import { getCurrentSite } from "@/lib/site";
 import { cn, excerpt, mediaThumb } from "@/lib/format";
 import { getPageDef, groupLabel, type PageDef } from "@/lib/sections";
 import { ConfirmButton } from "@/components/client";
@@ -40,13 +41,15 @@ export default async function AdminSectionPage({
   params: Promise<{ key: string }>;
   searchParams: Promise<{ ok?: string }>;
 }) {
-  const [{ key }, { ok }] = await Promise.all([params, searchParams]);
-  const staticDef = getPageDef(key);
+  const [{ key }, { ok }, site] = await Promise.all([params, searchParams, getCurrentSite()]);
+  // Los subdominios solo tienen páginas personalizadas
+  const staticDef = site.isMain || key === "custom" ? getPageDef(key) : undefined;
   const found = staticDef ? null : await getAnySection(key);
   if (!staticDef && !found) notFound();
   const def: PageDef = staticDef ?? found!.section;
   const custom = found?.custom;
   const isCustomList = key === "custom";
+  const where = (c: CustomSection) => (site.isMain ? groupLabel(c.group) : c.menuLabel ? `el menú “${c.menuLabel}”` : "el menú principal");
 
   const [pages, customs] = await Promise.all([
     getPageTexts(),
@@ -61,7 +64,7 @@ export default async function AdminSectionPage({
   const subtitle = isCustomList
     ? "Crea páginas nuevas, elige su tipo y en qué sección del menú aparecen"
     : custom
-      ? `${custom.path} · ${custom.type.label} · en ${groupLabel(custom.group)}`
+      ? `${custom.path} · ${custom.type.label} · en ${where(custom)}`
       : def.path;
 
   return (
@@ -107,7 +110,7 @@ export default async function AdminSectionPage({
             <p className="font-display text-lg font-bold tracking-wide text-white uppercase">Configuración de la página</p>
             <p className="text-sm text-zinc-400">
               Tipo: <strong className="text-zinc-200">{custom.type.label}</strong> · Ubicación:{" "}
-              <strong className="text-zinc-200">{groupLabel(custom.group)}</strong> ·{" "}
+              <strong className="text-zinc-200">{where(custom)}</strong> ·{" "}
               {custom.visible ? "Publicada" : "Oculta"}
             </p>
           </div>
@@ -134,7 +137,7 @@ export default async function AdminSectionPage({
                 const thumb = it.imageUrl ? mediaThumb(it.imageUrl) : null;
                 const publicHref = info ? info.path : section.detail ? itemPath(section.path, it) : section.path;
                 const meta = info
-                  ? `${info.type.label} · en ${groupLabel(info.group)} · ${info.path}`
+                  ? `${info.type.label} · en ${where(info)} · ${info.path}`
                   : [it.category, it.subtitle, it.price].filter(Boolean).join(" · ") || excerpt(it.content, 90);
                 return (
                   <li key={it.id} className={cn("flex items-center gap-3 p-3 sm:p-4", !it.published && "opacity-60")}>
