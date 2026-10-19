@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { getAnySection, getCustomSections, getItems, getPageTexts, type CustomSection } from "@/lib/data";
 import { getCurrentSite } from "@/lib/site";
-import { cn, excerpt, mediaThumb } from "@/lib/format";
+import { cn, excerpt, itemCategories, mediaThumb } from "@/lib/format";
 import { getPageDef, groupLabel, type PageDef } from "@/lib/sections";
 import { ConfirmButton } from "@/components/client";
 import { Icon } from "@/components/icons";
@@ -138,7 +138,7 @@ export default async function AdminSectionPage({
                 const publicHref = info ? info.path : section.detail ? itemPath(section.path, it) : section.path;
                 const meta = info
                   ? `${info.type.label} · en ${where(info)} · ${info.path}`
-                  : [it.category, it.subtitle, it.price].filter(Boolean).join(" · ") || excerpt(it.content, 90);
+                  : [itemCategories(it).join(", "), it.subtitle, it.price].filter(Boolean).join(" · ") || excerpt(it.content, 90);
                 return (
                   <li key={it.id} className={cn("flex items-center gap-3 p-3 sm:p-4", !it.published && "opacity-60")}>
                     <div className="flex flex-col">
