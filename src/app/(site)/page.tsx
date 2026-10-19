@@ -3,7 +3,7 @@ import { ArrowRight, ChevronDown, CircleHelp, Heart, Quote } from "lucide-react"
 import { isAdmin } from "@/lib/auth";
 import { getCurrentSite } from "@/lib/site";
 import { getCustomSections, getFeatured, getItems, getPageTexts, getRandomItem, getSettings } from "@/lib/data";
-import { excerpt } from "@/lib/format";
+import { excerpt, itemCategories } from "@/lib/format";
 import { groupEntries } from "@/lib/nav";
 import { PLATFORMS } from "@/lib/platforms";
 import { SECTIONS, getPageDef, type IconName, type SectionDef } from "@/lib/sections";
@@ -29,10 +29,22 @@ const EXPLORE_KEYS = [
   "donacion",
 ];
 
-export default async function HomePage() {
-  // Los subdominios tienen su propia portada
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  // Los subdominios tienen su propia portada (con buscador si muestra una lista)
   const site = await getCurrentSite();
-  if (!site.isMain) return <SubsiteHome />;
+  if (!site.isMain) {
+    const sp = await searchParams;
+    return (
+      <SubsiteHome
+        category={typeof sp.cat === "string" ? sp.cat : undefined}
+        query={typeof sp.q === "string" ? sp.q : undefined}
+      />
+    );
+  }
 
   const [settings, pages, featured, frase, pregunta, characters, inventos, admin, customs] = await Promise.all([
     getSettings(),
@@ -120,7 +132,7 @@ export default async function HomePage() {
               <SiteLogo settings={settings} prefer="light" className="h-full w-full" idPrefix="hero" />
             </div>
             <span className="vertical-text absolute top-1/2 -right-6 hidden -translate-y-1/2 font-brand text-xs tracking-[0.5em] text-white/25 sm:block">
-              誤解された天才
+              JOMER · WORRHIS
             </span>
           </div>
         </div>
@@ -304,7 +316,11 @@ export default async function HomePage() {
                 “{frase.content}”
               </blockquote>
               <figcaption className="mt-6 flex flex-wrap items-center gap-3">
-                {frase.category && <span className="chip">{frase.category}</span>}
+                {itemCategories(frase).map((c) => (
+                  <span key={c} className="chip">
+                    {c}
+                  </span>
+                ))}
                 <Link href="/Frases" className="inline-flex items-center gap-1 text-sm font-semibold text-accent-light hover:text-white">
                   Leer todas las frases <ArrowRight className="h-4 w-4" />
                 </Link>
@@ -347,7 +363,7 @@ export default async function HomePage() {
                   />
                 </div>
                 <div className="p-5">
-                  {it.category && <span className="chip">{it.category}</span>}
+                  {itemCategories(it)[0] && <span className="chip">{itemCategories(it)[0]}</span>}
                   <h3 className="mt-2 font-display text-xl font-bold text-white">{it.title}</h3>
                   {it.subtitle && <p className="text-sm text-zinc-400">{it.subtitle}</p>}
                 </div>
