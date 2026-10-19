@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { and, asc, desc, eq } from "drizzle-orm";
 import { del } from "@vercel/blob";
@@ -17,6 +18,7 @@ import {
 } from "@/lib/auth";
 import { getAnySection } from "@/lib/data";
 import { DEFAULT_SETTINGS } from "@/lib/defaults";
+import { RESERVED_SUBDOMAINS, normalizeSubdomain } from "@/lib/hosts";
 import { detectPlatform } from "@/lib/platforms";
 import {
   cleanSlug,
@@ -30,9 +32,16 @@ import {
   resolvePath,
   slugFromTitle,
 } from "@/lib/sections";
+import { SITE_COOKIE, getCurrentSite, getSiteSlugs, type SiteContext } from "@/lib/site";
+import { createSite, deleteSite } from "@/lib/sites";
 import { isBlobUrl } from "@/lib/storage";
 
 export type FormState = { error?: string } | null;
+
+const SITE_MISMATCH =
+  "Cambiaste de sitio en otra pestaña. Recarga esta página antes de guardar, así no se guarda en el sitio equivocado.";
+
+const SITE_COOKIE_OPTIONS = { httpOnly: true, sameSite: "lax" as const, path: "/", maxAge: 60 * 60 * 24 * 30 };
 
 function str(fd: FormData, key: string, max = 20000): string {
   const v = fd.get(key);
@@ -54,6 +63,17 @@ function parseGallery(fd: FormData): string[] {
   } catch {
     return [];
   }
+}
+
+/** Sitio que se está editando. Si el formulario se abrió en otro sitio (otra pestaña), devuelve null. */
+async function siteFor(fd: FormData): Promise<SiteContext | null> {
+  const site = await getCurrentSite();
+  const sent = fd.get("__site");
+  return typeof sent === "string" && sent !== site.slug ? null : site;
+}
+
+function safeRedirectPath(to: string, fallback: string): string {
+  return to.startsWith("/") && !to.startsWith("//") ? to : fallback;
 }
 
 /* ───────────── Acceso */
@@ -81,6 +101,7 @@ export async function setupAction(formData: FormData) {
 
 export async function logoutAction() {
   await destroySession();
+  (await cookies()).delete(SITE_COOKIE);
   redirect("/admin/login");
 }
 
@@ -98,9 +119,60 @@ export async function changePasswordAction(formData: FormData) {
   redirect("/admin/ajustes?pw=ok#seguridad");
 }
 
-/* ───────────── Contenido de las secciones (fijas o páginas nuevas) */
+/* ───────────── Sitios y subdominios */
+export async function switchSiteAction(formData: FormData) {
+  await requireAdmin();
+  const slug = str(formData, "site", 63);
+  const jar = await cookies();
+  if (slug && (await getSiteSlugs()).includes(slug)) jar.set(SITE_COOKIE, slug, SITE_COOKIE_OPTIONS);
+  else jar.delete(SITE_COOKIE);
+  refresh();
+  redirect(safeRedirectPath(str(formData, "redirectTo", 300), "/admin"));
+}
+
+export async function createSiteAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  await requireAdmin();
+  const slug = normalizeSubdomain(str(formData, "slug", 80));
+  if (slug.length < 2) return { error: "Escribe el nombre del subdominio (mínimo 2 letras), por ejemplo: juegos." };
+  if (RESERVED_SUBDOMAINS.has(slug)) return { error: `“${slug}” está reservado. Elige otro nombre.` };
+  if ((await getSiteSlugs()).includes(slug)) return { error: `Ya existe el subdominio “${slug}”.` };
+  const name = str(formData, "name", 120) || slug.charAt(0).toUpperCase() + slug.slice(1);
+  try {
+    await db.transaction((tx) =>
+      createSite(tx, {
+        slug,
+        name,
+        template: str(formData, "template", 32),
+        copyContent: formData.get("copy") === "on",
+      }),
+    );
+  } catch (err) {
+    console.error("[sites] crear:", err instanceof Error ? err.message : err);
+    return { error: "No se pudo crear el sitio. Intenta de nuevo con otro nombre." };
+  }
+  // Queda seleccionado para editarlo enseguida
+  (await cookies()).set(SITE_COOKIE, slug, SITE_COOKIE_OPTIONS);
+  refresh();
+  redirect("/admin?ok=site");
+}
+
+export async function deleteSiteAction(formData: FormData) {
+  await requireAdmin();
+  const slug = str(formData, "site", 63);
+  if (slug && (await getSiteSlugs()).includes(slug)) {
+    await deleteSite(slug);
+    const jar = await cookies();
+    if (jar.get(SITE_COOKIE)?.value === slug) jar.delete(SITE_COOKIE);
+  }
+  refresh();
+  redirect("/admin/sitios?ok=deleted");
+}
+
+/* ───────────── Contenido de las secciones (fijas o de páginas nuevas) */
 export async function saveItemAction(_prev: FormState, formData: FormData): Promise<FormState> {
   await requireAdmin();
+  const site = await siteFor(formData);
+  if (!site) return { error: SITE_MISMATCH };
   const key = str(formData, "section", 64);
   if (key === "custom") return { error: "Las páginas se crean y editan desde “Páginas personalizadas”." };
   const found = await getAnySection(key);
@@ -138,46 +210,53 @@ export async function saveItemAction(_prev: FormState, formData: FormData): Prom
     await db
       .update(items)
       .set(values)
-      .where(and(eq(items.id, id), eq(items.section, section.key)));
+      .where(and(eq(items.id, id), eq(items.site, site.slug), eq(items.section, section.key)));
   } else {
     const [first] = await db
       .select({ sortOrder: items.sortOrder })
       .from(items)
-      .where(eq(items.section, section.key))
+      .where(and(eq(items.site, site.slug), eq(items.section, section.key)))
       .orderBy(asc(items.sortOrder))
       .limit(1);
-    await db.insert(items).values({ ...values, section: section.key, sortOrder: (first?.sortOrder ?? 1) - 1 });
+    await db
+      .insert(items)
+      .values({ ...values, site: site.slug, section: section.key, sortOrder: (first?.sortOrder ?? 1) - 1 });
   }
   refresh();
   redirect(`/admin/s/${section.key}?ok=${id ? "updated" : "created"}`);
 }
 
 /* ───────────── Páginas personalizadas (tipo + ubicación en el menú) */
-const RESERVED = new Set(["admin", "api", "_next", "images", "favicon.ico", "icon.svg", "robots.txt", "sitemap.xml"]);
+const RESERVED_PATHS = new Set(["admin", "api", "_next", "images", "favicon.ico", "icon.svg", "robots.txt", "sitemap.xml"]);
 
 export async function saveCustomPageAction(_prev: FormState, formData: FormData): Promise<FormState> {
   await requireAdmin();
+  const site = await siteFor(formData);
+  if (!site) return { error: SITE_MISMATCH };
   const id = Number(str(formData, "id", 20)) || 0;
   const title = str(formData, "title", 300);
   if (!title) return { error: "Escribe el nombre de la página." };
 
   const pageType = getPageType(str(formData, "pageType", 32)).key;
-  const groupRaw = str(formData, "menuGroup", 32);
-  const menuGroup = isGroupKey(groupRaw) ? groupRaw : "mas";
+  const rawGroup = str(formData, "menuGroup", 40);
+  // Sitio principal: una sección fija del menú · Subdominio: un nombre libre ("" = enlace directo)
+  const menuGroup = site.isMain ? (isGroupKey(rawGroup) ? rawGroup : "mas") : rawGroup.replace(/\s+/g, " ").trim();
   const slug = cleanSlug(str(formData, "slug", 120)) || slugFromTitle(title);
   if (!slug || !/[A-Za-z]/.test(slug)) {
     return { error: "La dirección debe tener al menos una letra (por ejemplo: Emprendedores)." };
   }
 
-  const path = customPagePath(menuGroup, slug);
-  if (resolvePath(path) || (menuGroup === "mas" && RESERVED.has(slug.toLowerCase()))) {
+  const pathOf = (group: string, s: string) => (site.isMain ? customPagePath(group || "mas", s) : `/${s}`);
+  const path = pathOf(menuGroup, slug);
+  const topLevel = path === `/${slug}`;
+  if ((site.isMain && resolvePath(path)) || (topLevel && RESERVED_PATHS.has(slug.toLowerCase()))) {
     return { error: `La dirección “${path}” ya la usa otra sección del sitio. Elige otro nombre o dirección.` };
   }
   const others = await db
     .select({ id: items.id, slug: items.slug, menuGroup: items.menuGroup })
     .from(items)
-    .where(eq(items.section, "custom"));
-  if (others.some((o) => o.id !== id && normalizePath(customPagePath(o.menuGroup || "mas", o.slug)) === normalizePath(path))) {
+    .where(and(eq(items.site, site.slug), eq(items.section, "custom")));
+  if (others.some((o) => o.id !== id && normalizePath(pathOf(o.menuGroup, o.slug)) === normalizePath(path))) {
     return { error: `Ya existe otra página con la dirección “${path}”.` };
   }
 
@@ -204,20 +283,20 @@ export async function saveCustomPageAction(_prev: FormState, formData: FormData)
     const res = await db
       .update(items)
       .set(values)
-      .where(and(eq(items.id, id), eq(items.section, "custom")))
+      .where(and(eq(items.id, id), eq(items.site, site.slug), eq(items.section, "custom")))
       .returning({ id: items.id });
     if (res.length === 0) return { error: "Esta página ya no existe." };
   } else {
-    // Las páginas nuevas se agregan al final del menú de su sección
+    // Las páginas nuevas se agregan al final del menú
     const [last] = await db
       .select({ sortOrder: items.sortOrder })
       .from(items)
-      .where(eq(items.section, "custom"))
+      .where(and(eq(items.site, site.slug), eq(items.section, "custom")))
       .orderBy(desc(items.sortOrder))
       .limit(1);
     const [row] = await db
       .insert(items)
-      .values({ ...values, section: "custom", sortOrder: (last?.sortOrder ?? -1) + 1 })
+      .values({ ...values, site: site.slug, section: "custom", sortOrder: (last?.sortOrder ?? -1) + 1 })
       .returning({ id: items.id });
     savedId = row.id;
   }
@@ -256,11 +335,13 @@ export async function moveItemAction(formData: FormData) {
   await requireAdmin();
   const id = Number(str(formData, "id", 20));
   const dir = str(formData, "dir", 5);
-  const section = str(formData, "section", 64);
+  // El orden se calcula dentro del mismo sitio y la misma sección del elemento
+  const [row] = await db.select({ site: items.site, section: items.section }).from(items).where(eq(items.id, id)).limit(1);
+  if (!row) return;
   const list = await db
     .select({ id: items.id })
     .from(items)
-    .where(eq(items.section, section))
+    .where(and(eq(items.site, row.site), eq(items.section, row.section)))
     .orderBy(asc(items.sortOrder), desc(items.createdAt));
   const idx = list.findIndex((r) => r.id === id);
   const target = dir === "up" ? idx - 1 : idx + 1;
@@ -275,11 +356,12 @@ export async function moveItemAction(formData: FormData) {
   refresh();
 }
 
-/* ───────────── Textos de las páginas fijas */
+/* ───────────── Textos de las páginas fijas (solo sitio principal) */
 export async function savePageAction(formData: FormData) {
   await requireAdmin();
+  const site = await getCurrentSite();
   const key = str(formData, "key", 64);
-  if (!getPageDef(key)) redirect("/admin");
+  if (!site.isMain || !getPageDef(key)) redirect("/admin");
   const values = {
     navLabel: str(formData, "navLabel", 200),
     title: str(formData, "title", 500),
@@ -296,16 +378,18 @@ export async function savePageAction(formData: FormData) {
   redirect(`/admin/s/${key}?ok=page`);
 }
 
-/* ───────────── Ajustes */
+/* ───────────── Ajustes del sitio que se está editando */
 export async function saveSettingsAction(formData: FormData) {
   await requireAdmin();
+  const site = await siteFor(formData);
+  if (!site) redirect("/admin/ajustes?error=site");
   for (const key of Object.keys(DEFAULT_SETTINGS)) {
     if (!formData.has(key)) continue;
     const value = str(formData, key, 20000);
     await db
       .insert(settings)
-      .values({ key, value })
-      .onConflictDoUpdate({ target: settings.key, set: { value } });
+      .values({ site: site.slug, key, value })
+      .onConflictDoUpdate({ target: [settings.site, settings.key], set: { value } });
   }
   refresh();
   redirect("/admin/ajustes?ok=1");
