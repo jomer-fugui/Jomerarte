@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ExternalLink, LayoutList, Trash2 } from "lucide-react";
-import { getAnySection, getItem, getPageTexts, type Item } from "@/lib/data";
+import { getAnySection, getCustomSections, getItem, getPageTexts, type Item } from "@/lib/data";
+import { siteLabel } from "@/lib/hosts";
 import { describeCustomPage, getPageType, isGroupKey, newItemLabel } from "@/lib/sections";
+import { getCurrentSite } from "@/lib/site";
 import { ConfirmButton } from "@/components/client";
 import { CustomPageForm, type CustomPageValues } from "@/components/admin/CustomPageForm";
 import { ItemForm, type ItemValues } from "@/components/admin/ItemForm";
@@ -34,7 +36,7 @@ function toValues(it: Item): ItemValues & { id: number } {
   };
 }
 
-function toPageValues(it: Item): CustomPageValues & { id: number } {
+function toPageValues(it: Item, mainSite: boolean): CustomPageValues & { id: number } {
   return {
     id: it.id,
     title: it.title,
@@ -47,7 +49,7 @@ function toPageValues(it: Item): CustomPageValues & { id: number } {
     linkUrl: it.linkUrl,
     linkLabel: it.linkLabel,
     pageType: getPageType(it.pageType || "page").key,
-    menuGroup: isGroupKey(it.menuGroup) ? it.menuGroup : "mas",
+    menuGroup: mainSite ? (isGroupKey(it.menuGroup) ? it.menuGroup : "mas") : it.menuGroup,
     icon: it.icon,
     published: it.published,
   };
@@ -60,18 +62,20 @@ export default async function EditItemPage({
   params: Promise<{ key: string; id: string }>;
   searchParams: Promise<{ grupo?: string }>;
 }) {
-  const [{ key, id }, sp] = await Promise.all([params, searchParams]);
+  const [{ key, id }, sp, site] = await Promise.all([params, searchParams, getCurrentSite()]);
 
-  /* ───── Crear / editar una página personalizada */
+  /* ───── Crear / editar una página personalizada del sitio actual */
   if (key === "custom") {
     let page: Item | undefined;
     if (id !== "nuevo") {
       page = await getItem(Number(id));
-      if (!page || page.section !== "custom") notFound();
+      if (!page || page.section !== "custom" || page.site !== site.slug) notFound();
     }
-    const info = page ? describeCustomPage(page) : null;
-    const host = (process.env.NEXT_PUBLIC_SITE_URL || "https://jomerarte.com").replace(/^https?:\/\//, "").replace(/\/+$/, "");
+    const info = page ? describeCustomPage(page, site.isMain) : null;
     const grupo = sp.grupo ?? "";
+    const menuSuggestions = site.isMain
+      ? []
+      : Array.from(new Set((await getCustomSections()).map((c) => c.menuLabel).filter(Boolean)));
 
     return (
       <div className="space-y-6">
@@ -104,9 +108,12 @@ export default async function EditItemPage({
         </div>
 
         <CustomPageForm
-          page={page ? toPageValues(page) : null}
-          defaultGroup={isGroupKey(grupo) ? grupo : undefined}
-          host={host}
+          page={page ? toPageValues(page, site.isMain) : null}
+          defaultGroup={site.isMain && isGroupKey(grupo) ? grupo : undefined}
+          host={siteLabel(site.slug)}
+          mode={site.isMain ? "main" : "sub"}
+          menuSuggestions={menuSuggestions}
+          site={site.slug}
         />
 
         {page && (
@@ -122,14 +129,14 @@ export default async function EditItemPage({
     );
   }
 
-  /* ───── Elemento de una sección (fija o de una página nueva) */
+  /* ───── Elemento de una sección del sitio actual */
   const found = await getAnySection(key);
   if (!found) notFound();
   const section = found.section;
   let item: Item | undefined;
   if (id !== "nuevo") {
     item = await getItem(Number(id));
-    if (!item || item.section !== key) notFound();
+    if (!item || item.section !== key || item.site !== site.slug) notFound();
   }
   const pages = await getPageTexts();
   const label = pages[key]?.navLabel ?? section.navLabel;
@@ -167,6 +174,7 @@ export default async function EditItemPage({
           layout: section.layout,
         }}
         item={item ? toValues(item) : null}
+        site={site.slug}
       />
 
       {item && (
