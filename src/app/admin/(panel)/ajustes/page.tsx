@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { passwordFromEnv } from "@/lib/auth";
-import { getSettings } from "@/lib/data";
+import { getCustomSections, getSettings, type CustomSection } from "@/lib/data";
 import { SETTINGS_GROUPS, type SettingField } from "@/lib/defaults";
+import { siteLabel } from "@/lib/hosts";
+import { getCurrentSite } from "@/lib/site";
 import { MediaInput } from "@/components/admin/MediaInput";
 import { SubmitButton } from "@/components/admin/SubmitButton";
 import { changePasswordAction, saveSettingsAction } from "../../actions";
@@ -16,12 +18,23 @@ const PW: Record<string, { ok: boolean; text: string }> = {
   env: { ok: false, text: "La contraseña está definida en la variable de entorno ADMIN_PASSWORD." },
 };
 
-function FieldInput({ field, value }: { field: SettingField; value: string }) {
+function FieldInput({ field, value, pages }: { field: SettingField; value: string; pages: CustomSection[] }) {
   switch (field.type) {
     case "textarea":
       return <textarea name={field.key} defaultValue={value} rows={4} className="input" />;
     case "image":
       return <MediaInput name={field.key} defaultValue={value} accept="image/*" />;
+    case "page":
+      return (
+        <select name={field.key} defaultValue={value} className="input">
+          <option value="">Ninguna: solo la portada y las tarjetas de las páginas</option>
+          {pages.map((c) => (
+            <option key={c.item.id} value={String(c.item.id)}>
+              {c.item.title || c.item.slug} ({c.type.label})
+            </option>
+          ))}
+        </select>
+      );
     case "color":
       return (
         <input
@@ -43,8 +56,17 @@ function FieldInput({ field, value }: { field: SettingField; value: string }) {
   }
 }
 
-export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ ok?: string; pw?: string }> }) {
-  const [settings, { ok, pw }] = await Promise.all([getSettings(), searchParams]);
+export default async function SettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ ok?: string; pw?: string; error?: string }>;
+}) {
+  const [settings, site, { ok, pw, error }] = await Promise.all([getSettings(), getCurrentSite(), searchParams]);
+  const pages = site.isMain ? [] : await getCustomSections();
+  const scope = site.isMain ? "main" : "sub";
+  const groups = SETTINGS_GROUPS.filter((g) => !g.only || g.only === scope)
+    .map((g) => ({ ...g, fields: g.fields.filter((f) => !f.only || f.only === scope) }))
+    .filter((g) => g.fields.length > 0);
   const pwMsg = pw ? PW[pw] : undefined;
   const envPw = passwordFromEnv();
 
@@ -57,16 +79,29 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         / <span className="text-zinc-300">Ajustes</span>
       </nav>
       <div>
-        <h1 className="font-display text-3xl font-bold text-white uppercase">Ajustes del sitio</h1>
-        <p className="mt-1 text-zinc-400">Logo, colores, textos de la portada, contacto, redes sociales y tiendas externas.</p>
+        <h1 className="font-display text-3xl font-bold break-words text-white uppercase">Ajustes de {settings.siteName}</h1>
+        <p className="mt-1 text-zinc-400">
+          <strong className="text-zinc-200">{siteLabel(site.slug)}</strong> ·{" "}
+          {site.isMain
+            ? "Sitio principal: logo, colores, textos de la portada, contacto, redes sociales y tiendas externas."
+            : "Estos ajustes solo cambian este subdominio: su nombre, logo, colores, portada, descripción, contacto y redes."}
+        </p>
       </div>
 
       {ok && (
-        <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-4 text-sm text-emerald-200">Ajustes guardados.</div>
+        <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-4 text-sm text-emerald-200">
+          Ajustes guardados en {siteLabel(site.slug)}.
+        </div>
+      )}
+      {error === "site" && (
+        <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-200">
+          No se guardó nada: cambiaste de sitio en otra pestaña. Revisa los datos y vuelve a guardar.
+        </div>
       )}
 
       <form action={saveSettingsAction} className="space-y-6">
-        {SETTINGS_GROUPS.map((g) => (
+        <input type="hidden" name="__site" value={site.slug} />
+        {groups.map((g) => (
           <section key={g.title} className="card space-y-5 p-6">
             <div>
               <h2 className="font-display text-xl font-bold tracking-wide text-white uppercase">{g.title}</h2>
@@ -74,9 +109,12 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
             </div>
             <div className="grid gap-5 md:grid-cols-2">
               {g.fields.map((field) => (
-                <div key={field.key} className={field.type === "textarea" || field.type === "image" ? "md:col-span-2" : ""}>
+                <div
+                  key={field.key}
+                  className={field.type === "textarea" || field.type === "image" || field.type === "page" ? "md:col-span-2" : ""}
+                >
                   <label className="label">{field.label}</label>
-                  <FieldInput field={field} value={settings[field.key]} />
+                  <FieldInput field={field} value={settings[field.key]} pages={pages} />
                   {field.hint && <p className="mt-1.5 text-xs text-zinc-500">{field.hint}</p>}
                 </div>
               ))}
@@ -91,7 +129,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
       <section id="seguridad" className="card space-y-5 p-6">
         <div>
           <h2 className="font-display text-xl font-bold tracking-wide text-white uppercase">Seguridad</h2>
-          <p className="text-sm text-zinc-500">Cambia la contraseña del panel.</p>
+          <p className="text-sm text-zinc-500">La contraseña del panel es la misma para todos tus sitios.</p>
         </div>
         {pwMsg && (
           <div

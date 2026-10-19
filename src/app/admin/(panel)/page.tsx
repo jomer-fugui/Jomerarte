@@ -1,17 +1,24 @@
 import Link from "next/link";
-import { EyeOff, Image as ImageIcon, Plus, Settings, Sparkles, Upload } from "lucide-react";
+import { EyeOff, Globe, Image as ImageIcon, Plus, Settings, Sparkles, Upload } from "lucide-react";
 import { getCustomSections, getPageTexts, getSectionCounts, getSettings } from "@/lib/data";
 import { ALL_PAGE_DEFS, GROUPS } from "@/lib/sections";
+import { getCurrentSite, getSiteSlugs } from "@/lib/site";
 import { Icon } from "@/components/icons";
+import { SubsiteDashboard } from "@/components/admin/SubsiteDashboard";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminHome() {
-  const [counts, pages, settings, customs] = await Promise.all([
+export default async function AdminHome({ searchParams }: { searchParams: Promise<{ ok?: string }> }) {
+  const [site, { ok }] = await Promise.all([getCurrentSite(), searchParams]);
+  // Cada subdominio tiene su propio panel
+  if (!site.isMain) return <SubsiteDashboard site={site} ok={ok} />;
+
+  const [counts, pages, settings, customs, subsites] = await Promise.all([
     getSectionCounts(),
     getPageTexts(),
     getSettings(),
     getCustomSections(),
+    getSiteSlugs(),
   ]);
   const noLogo = !settings.logoUrl && !settings.logoLightUrl;
 
@@ -41,26 +48,35 @@ export default async function AdminHome() {
         </Link>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Link href="/admin/ajustes" className="card card-hover flex items-center gap-4 p-5">
-          <Settings className="h-7 w-7 text-accent-light" />
+          <Settings className="h-7 w-7 shrink-0 text-accent-light" />
           <div>
             <p className="font-semibold text-white">Ajustes y portada</p>
             <p className="text-xs text-zinc-400">Logo, colores, WhatsApp, redes, textos del inicio</p>
           </div>
         </Link>
         <Link href="/admin/medios" className="card card-hover flex items-center gap-4 p-5">
-          <ImageIcon className="h-7 w-7 text-accent-light" />
+          <ImageIcon className="h-7 w-7 shrink-0 text-accent-light" />
           <div>
             <p className="font-semibold text-white">Archivos subidos</p>
             <p className="text-xs text-zinc-400">Fotos, videos y audios</p>
           </div>
         </Link>
         <Link href="/admin/s/custom/nuevo" className="card card-hover flex items-center gap-4 p-5">
-          <Sparkles className="h-7 w-7 text-accent-light" />
+          <Sparkles className="h-7 w-7 shrink-0 text-accent-light" />
           <div>
             <p className="font-semibold text-white">Crear página nueva</p>
             <p className="text-xs text-zinc-400">Elige su tipo y en qué sección del menú va</p>
+          </div>
+        </Link>
+        <Link href="/admin/sitios" className="card card-hover flex items-center gap-4 p-5">
+          <Globe className="h-7 w-7 shrink-0 text-accent-light" />
+          <div>
+            <p className="font-semibold text-white">Subdominios</p>
+            <p className="text-xs text-zinc-400">
+              {subsites.length} {subsites.length === 1 ? "sitio independiente" : "sitios independientes"} · crear otro
+            </p>
           </div>
         </Link>
       </div>
@@ -138,6 +154,10 @@ export default async function AdminHome() {
             Para crear una página dentro de una sección (por ejemplo “Emprendedores” en Recomendaciones), usa “Página nueva
             aquí” o “Crear página nueva” y elige su tipo: recomendaciones, productos, servicios, frases, galería, etc.
           </li>
+          <li>
+            Cada <strong>subdominio</strong> (frases, cielinfier o los que crees, como juegos) es un sitio independiente:
+            elígelo arriba en el selector de sitio para editar su nombre, logo, portada y páginas sin tocar este sitio.
+          </li>
           <li>Para videos largos, súbelos a YouTube y pega el enlace: se verán integrados en tu página.</li>
           <li>Las fotos grandes se reducen automáticamente al subirlas para que la página cargue rápido.</li>
           <li>
@@ -146,10 +166,6 @@ export default async function AdminHome() {
           </li>
           <li>Marca un elemento como “Destacado” para que aparezca en la portada.</li>
           <li>Puedes ocultar una sección entera desde “Textos de la página” sin borrar su contenido.</li>
-          <li>
-            Subdominios: si configuras <strong>frases.jomerarte.com</strong> y <strong>cielinfier.jomerarte.com</strong> en tu
-            DNS apuntando a este servidor, se abrirán directamente esas secciones.
-          </li>
         </ul>
       </section>
     </div>
