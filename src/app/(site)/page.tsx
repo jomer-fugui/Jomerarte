@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, ChevronDown, CircleHelp, Heart, Quote } from "lucide-react";
 import { isAdmin } from "@/lib/auth";
+import { getCurrentSite } from "@/lib/site";
 import { getCustomSections, getFeatured, getItems, getPageTexts, getRandomItem, getSettings } from "@/lib/data";
 import { excerpt } from "@/lib/format";
 import { groupEntries } from "@/lib/nav";
@@ -10,6 +11,7 @@ import { SiteLogo } from "@/components/Logo";
 import { Icon } from "@/components/icons";
 import { AdminFab, ContactButton, ItemImage, PlatformBadge, RichText, SectionHeading } from "@/components/ui";
 import { itemPath } from "@/components/views/SectionView";
+import { SubsiteHome } from "@/components/views/SubsiteHome";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +30,10 @@ const EXPLORE_KEYS = [
 ];
 
 export default async function HomePage() {
+  // Los subdominios tienen su propia portada
+  const site = await getCurrentSite();
+  if (!site.isMain) return <SubsiteHome />;
+
   const [settings, pages, featured, frase, pregunta, characters, inventos, admin, customs] = await Promise.all([
     getSettings(),
     getPageTexts(),
@@ -114,7 +120,7 @@ export default async function HomePage() {
               <SiteLogo settings={settings} prefer="light" className="h-full w-full" idPrefix="hero" />
             </div>
             <span className="vertical-text absolute top-1/2 -right-6 hidden -translate-y-1/2 font-brand text-xs tracking-[0.5em] text-white/25 sm:block">
-              誤解された天才
+              JOMER · WORRHIS
             </span>
           </div>
         </div>
