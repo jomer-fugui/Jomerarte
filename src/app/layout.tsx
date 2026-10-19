@@ -13,11 +13,11 @@ export const dynamic = "force-dynamic";
 export async function generateMetadata(): Promise<Metadata> {
   const s = await getSettings();
   return {
-    title: { default: `${s.siteName} · ${s.tagline}`, template: `%s | ${s.siteName}` },
-    description: s.heroText.slice(0, 160),
+    title: { default: s.tagline ? `${s.siteName} · ${s.tagline}` : s.siteName, template: `%s | ${s.siteName}` },
+    description: (s.heroText || s.tagline || s.siteName).slice(0, 160),
     openGraph: {
       title: s.siteName,
-      description: s.heroText.slice(0, 160),
+      description: (s.heroText || s.tagline || s.siteName).slice(0, 160),
       images: s.heroImage ? [s.heroImage] : undefined,
       locale: "es",
       type: "website",
