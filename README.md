@@ -95,15 +95,30 @@ Abre `https://tu-sitio.vercel.app/admin` y entra con tu `ADMIN_PASSWORD` (si no 
 
 ---
 
-## 3. Dominio jomerarte.com y subdominios
+## 3. Dominio jomerarte.com y subdominios independientes
 
-En Vercel → **Settings → Domains** agrega:
+Cada subdominio es **un sitio completamente independiente**: tiene su propio nombre, logo, colores, portada,
+descripción, contacto, redes, menú, páginas y contenido. Lo que cambies en uno **no afecta** a los demás.
+
+- `frases.jomerarte.com` y `cielinfier.jomerarte.com` ya vienen creados como sitios independientes
+  (se les copió el contenido que tenías; desde ahora se editan por separado).
+- Para crear otro (por ejemplo `juegos.jomerarte.com`): **/admin → Sitios → Crear un subdominio nuevo**, elige una
+  plantilla (en blanco, frases, anime/videojuego, tienda, servicios, portafolio o blog) y listo.
+- Para editarlo: elige el sitio en el selector de arriba del panel (**“¿Qué sitio quieres editar?”**). Todo lo que
+  hagas (Ajustes, páginas, contenido) se guarda solo en ese sitio. Con **Vista previa** lo ves antes de conectarlo.
+- En **Ajustes → Portada** de cada subdominio eliges qué página se muestra en su portada.
+
+**Para publicarlos en internet**, en Vercel → **Settings → Domains** agrega:
 
 - `jomerarte.com` y `www.jomerarte.com`
-- `frases.jomerarte.com` → abre directamente **Frases de un Hereje** (`/Frases`, `/Preguntas`, `/Poesias`)
-- `cielinfier.jomerarte.com` → abre directamente **CielInfier** (`/`, `/historia`, `/proceso`)
+- cada subdominio: `frases.jomerarte.com`, `cielinfier.jomerarte.com`, `juegos.jomerarte.com`…
+  (o un comodín `*.jomerarte.com`, que requiere usar los nameservers de Vercel)
 
-Luego crea en tu proveedor de dominio los registros DNS que Vercel te indique. El sitio detecta los subdominios solo.
+Luego crea en tu proveedor de dominio los registros DNS que Vercel te indique (normalmente un CNAME por subdominio).
+No hace falta volver a desplegar: el sitio reconoce el subdominio solo.
+
+> Configura `NEXT_PUBLIC_SITE_URL=https://jomerarte.com` en Vercel: así el panel arma bien los enlaces de cada
+> subdominio y la sesión del panel sirve para todos (entras una vez y puedes editar desde cualquiera).
 
 ---
 
@@ -129,6 +144,7 @@ npm run dev                   # abre http://localhost:3000
 | Error al subir un video | Activa Vercel Blob (2.4) o sube el video a YouTube y pega el enlace. |
 | Olvidé la contraseña del panel | Cambia `ADMIN_PASSWORD` en Vercel y vuelve a desplegar. |
 | GitHub no deja subir los archivos | No subas `node_modules` ni `.next` (ver sección 1). |
+| Un subdominio muestra el sitio principal | Revisa que exista en /admin → Sitios y que esté agregado en Vercel → Domains. |
 | La página tarda la primera vez | Neon “despierta” la base tras un rato sin uso; es normal que la primera visita demore 1 o 2 segundos. |
 
 ---
