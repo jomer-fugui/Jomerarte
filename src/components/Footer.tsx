@@ -117,7 +117,7 @@ export function Footer({ settings, nav }: { settings: Settings; nav: NavGroup[] 
             {owner ? ` · ${owner}` : ""}. Todos los derechos reservados.
           </span>
           <Link href="/admin" className="hover:text-zinc-300">
-            Administrar sitio
+            °
           </Link>
         </div>
       </div>
