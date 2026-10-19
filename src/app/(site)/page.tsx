@@ -132,7 +132,7 @@ export default async function HomePage({
               <SiteLogo settings={settings} prefer="light" className="h-full w-full" idPrefix="hero" />
             </div>
             <span className="vertical-text absolute top-1/2 -right-6 hidden -translate-y-1/2 font-brand text-xs tracking-[0.5em] text-white/25 sm:block">
-              JOMER · WORRHIS
+              誤解された天才
             </span>
           </div>
         </div>
