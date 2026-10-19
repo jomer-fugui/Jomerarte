@@ -5,6 +5,7 @@ import {
   integer,
   jsonb,
   pgTable,
+  primaryKey,
   serial,
   text,
   timestamp,
@@ -17,11 +18,19 @@ const bytea = customType<{ data: Buffer; driverData: Buffer }>({
   },
 });
 
+/** Subdominios: cada uno es un sitio independiente (juegos.jomerarte.com → slug "juegos"). */
+export const sites = pgTable("sites", {
+  slug: varchar("slug", { length: 63 }).primaryKey(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 /** Contenido genérico de todas las secciones (servicios, productos, frases, personajes, etc.) */
 export const items = pgTable(
   "items",
   {
     id: serial("id").primaryKey(),
+    /** "" = sitio principal; si no, el subdominio al que pertenece */
+    site: varchar("site", { length: 63 }).notNull().default(""),
     section: varchar("section", { length: 64 }).notNull(),
     category: varchar("category", { length: 160 }).notNull().default(""),
     slug: varchar("slug", { length: 160 }).notNull().default(""),
@@ -40,7 +49,7 @@ export const items = pgTable(
     location: text("location").notNull().default(""),
     /** Solo páginas personalizadas: tipo de página, ubicación en el menú e ícono */
     pageType: varchar("page_type", { length: 32 }).notNull().default(""),
-    menuGroup: varchar("menu_group", { length: 32 }).notNull().default(""),
+    menuGroup: varchar("menu_group", { length: 60 }).notNull().default(""),
     icon: varchar("icon", { length: 32 }).notNull().default(""),
     featured: boolean("featured").notNull().default(false),
     published: boolean("published").notNull().default(true),
@@ -48,10 +57,10 @@ export const items = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("items_section_idx").on(t.section, t.sortOrder)],
+  (t) => [index("items_site_section_idx").on(t.site, t.section, t.sortOrder)],
 );
 
-/** Textos editables de cada página (título, introducción, imagen, visibilidad) */
+/** Textos editables de las páginas fijas del sitio principal (título, introducción, imagen, visibilidad) */
 export const pages = pgTable("pages", {
   key: varchar("key", { length: 64 }).primaryKey(),
   navLabel: text("nav_label").notNull().default(""),
@@ -62,14 +71,19 @@ export const pages = pgTable("pages", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-/** Ajustes generales del sitio (clave / valor) */
-export const settings = pgTable("settings", {
-  key: varchar("key", { length: 100 }).primaryKey(),
-  value: text("value").notNull().default(""),
-});
+/** Ajustes de cada sitio (clave / valor). site "" = sitio principal y ajustes internos. */
+export const settings = pgTable(
+  "settings",
+  {
+    site: varchar("site", { length: 63 }).notNull().default(""),
+    key: varchar("key", { length: 100 }).notNull(),
+    value: text("value").notNull().default(""),
+  },
+  (t) => [primaryKey({ name: "settings_site_key_pk", columns: [t.site, t.key] })],
+);
 
 /**
- * Archivos subidos (fotos, videos, audios, PDF).
+ * Archivos subidos (fotos, videos, audios, PDF). Se comparten entre todos los sitios.
  *  - Con Vercel Blob: se guarda solo la dirección pública en `url`.
  *  - Sin Blob: el archivo se guarda dentro de la base en `data`.
  */

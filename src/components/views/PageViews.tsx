@@ -83,6 +83,7 @@ export function SectionPage({
   admin,
   category,
   extra,
+  eyebrow,
 }: {
   section: SectionDef;
   text: PageText;
@@ -94,6 +95,8 @@ export function SectionPage({
   category?: string;
   /** Página personalizada: texto, video, galería y botón extra */
   extra?: Item;
+  /** Texto pequeño sobre el título (por defecto, la sección del menú) */
+  eyebrow?: string;
 }) {
   const hasExtra = Boolean(extra && (extra.content || extra.videoUrl || extra.gallery.length > 0));
   const actions =
@@ -115,7 +118,7 @@ export function SectionPage({
         intro={text.intro}
         image={text.imageUrl}
         icon={section.icon}
-        eyebrow={eyebrowFor(section.group, pages)}
+        eyebrow={eyebrow ?? eyebrowFor(section.group, pages)}
         crumbs={crumbsFor(section, pages)}
         tone={section.layout === "bad" ? "danger" : "default"}
       >
@@ -406,11 +409,13 @@ export function CustomPageView({
   pages,
   tabs,
   admin,
+  eyebrow,
 }: {
   custom: CustomSection;
   pages: Record<string, PageText>;
   tabs: Tab[];
   admin: boolean;
+  eyebrow?: string;
 }) {
   const page = custom.item;
   return (
@@ -420,7 +425,7 @@ export function CustomPageView({
         intro={page.subtitle}
         image={page.imageUrl}
         icon={custom.icon}
-        eyebrow={eyebrowFor(custom.group, pages)}
+        eyebrow={eyebrow ?? eyebrowFor(custom.group, pages)}
         crumbs={crumbsFor({ key: custom.key, group: custom.group }, pages)}
       >
         {page.linkUrl ? (

@@ -1,25 +1,34 @@
 import crypto from "node:crypto";
+import { cache } from "react";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { settings } from "@/db/schema";
+import { sharedCookieDomain } from "./hosts";
 import { ensureSeeded } from "./seed";
 
-const COOKIE = "jomer_admin";
+/** La sesión sirve para el sitio principal y todos sus subdominios (si NEXT_PUBLIC_SITE_URL está configurada). */
+const COOKIE = "jomer_session";
+const LEGACY_COOKIE = "jomer_admin";
 const MAX_AGE = 60 * 60 * 24 * 30; // 30 días
 
+/** Ajustes internos (contraseña, secreto de sesión): siempre del sitio principal. */
 async function getSetting(key: string): Promise<string | null> {
   await ensureSeeded();
-  const rows = await db.select().from(settings).where(eq(settings.key, key)).limit(1);
+  const rows = await db
+    .select()
+    .from(settings)
+    .where(and(eq(settings.site, ""), eq(settings.key, key)))
+    .limit(1);
   return rows[0]?.value ?? null;
 }
 
 async function setSetting(key: string, value: string): Promise<void> {
   await db
     .insert(settings)
-    .values({ key, value })
-    .onConflictDoUpdate({ target: settings.key, set: { value } });
+    .values({ site: "", key, value })
+    .onConflictDoUpdate({ target: [settings.site, settings.key], set: { value } });
 }
 
 async function getSecret(): Promise<string> {
@@ -27,7 +36,7 @@ async function getSecret(): Promise<string> {
   const existing = await getSetting("__session_secret");
   if (existing) return existing;
   const fresh = crypto.randomBytes(32).toString("hex");
-  await db.insert(settings).values({ key: "__session_secret", value: fresh }).onConflictDoNothing();
+  await db.insert(settings).values({ site: "", key: "__session_secret", value: fresh }).onConflictDoNothing();
   return (await getSetting("__session_secret")) ?? fresh;
 }
 
@@ -78,26 +87,42 @@ export async function setPassword(pw: string): Promise<void> {
   }
 }
 
+async function requestInfo(): Promise<{ host: string; secure: boolean }> {
+  const h = await headers();
+  return {
+    host: (h.get("x-forwarded-host") ?? h.get("host") ?? "").split(",")[0].trim(),
+    secure: h.get("x-forwarded-proto") === "https",
+  };
+}
+
 export async function createSession(): Promise<void> {
   const exp = Date.now() + MAX_AGE * 1000;
   const payload = `admin.${exp}`;
   const token = `${payload}.${sign(payload, await getSecret())}`;
-  const h = await headers();
-  const secure = h.get("x-forwarded-proto") === "https";
-  (await cookies()).set(COOKIE, token, {
+  const { host, secure } = await requestInfo();
+  const domain = sharedCookieDomain(host);
+  const jar = await cookies();
+  jar.set(COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
     path: "/",
     maxAge: MAX_AGE,
     secure,
+    ...(domain ? { domain } : {}),
   });
+  jar.delete(LEGACY_COOKIE);
 }
 
 export async function destroySession(): Promise<void> {
-  (await cookies()).delete(COOKIE);
+  const { host } = await requestInfo();
+  const domain = sharedCookieDomain(host);
+  const jar = await cookies();
+  if (domain) jar.set(COOKIE, "", { path: "/", domain, maxAge: 0 });
+  else jar.delete(COOKIE);
+  jar.delete(LEGACY_COOKIE);
 }
 
-export async function isAdmin(): Promise<boolean> {
+export const isAdmin = cache(async (): Promise<boolean> => {
   try {
     const token = (await cookies()).get(COOKIE)?.value;
     if (!token) return false;
@@ -111,7 +136,7 @@ export async function isAdmin(): Promise<boolean> {
   } catch {
     return false;
   }
-}
+});
 
 export async function requireAdmin(): Promise<void> {
   if (!(await isAdmin())) redirect("/admin/login");

@@ -11,6 +11,9 @@ export function Footer({ settings, nav }: { settings: Settings; nav: NavGroup[] 
   const socials = socialLinks(settings);
   const wa = waLink(settings.whatsapp, settings.whatsappMessage);
   const year = new Date().getFullYear();
+  const direct = nav.filter((g) => g.direct && g.href);
+  const columns = nav.filter((g) => !g.direct);
+  const owner = settings.copyrightName.trim();
 
   return (
     <footer className="no-print relative mt-24 border-t border-white/10 bg-black/60">
@@ -18,13 +21,13 @@ export function Footer({ settings, nav }: { settings: Settings; nav: NavGroup[] 
       <div className="container-x grid gap-12 py-14 lg:grid-cols-[1.1fr_2fr]">
         <div>
           <Link href="/" className="flex items-center gap-3">
-            <SiteLogo settings={settings} prefer="light" className="h-16 w-16" idPrefix="ftr" />
-            <div>
-              <div className="font-brand text-xl tracking-[0.2em] text-white">{settings.siteName.toUpperCase()}</div>
-              <div className="text-xs text-zinc-400">{settings.tagline}</div>
+            <SiteLogo settings={settings} prefer="light" className="h-16 w-16 shrink-0" idPrefix="ftr" />
+            <div className="min-w-0">
+              <div className="font-brand text-xl tracking-[0.2em] break-words text-white">{settings.siteName.toUpperCase()}</div>
+              {settings.tagline && <div className="text-xs text-zinc-400">{settings.tagline}</div>}
             </div>
           </Link>
-          <p className="mt-5 max-w-sm text-sm leading-relaxed text-zinc-400">{settings.footerText}</p>
+          {settings.footerText && <p className="mt-5 max-w-sm text-sm leading-relaxed text-zinc-400">{settings.footerText}</p>}
           <ul className="mt-5 space-y-2 text-sm text-zinc-300">
             {wa && (
               <li>
@@ -77,7 +80,21 @@ export function Footer({ settings, nav }: { settings: Settings; nav: NavGroup[] 
           )}
         </div>
         <div className="grid grid-cols-2 gap-8 sm:grid-cols-3 lg:grid-cols-4">
-          {nav.map((g) => (
+          {direct.length > 0 && (
+            <div>
+              <h4 className="font-display text-sm font-bold tracking-[0.2em] text-white uppercase">Páginas</h4>
+              <ul className="mt-3 space-y-2">
+                {direct.map((g) => (
+                  <li key={g.key}>
+                    <Link href={g.href ?? "/"} className="text-sm text-zinc-400 transition hover:text-white">
+                      {g.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {columns.map((g) => (
             <div key={g.key}>
               <h4 className="font-display text-sm font-bold tracking-[0.2em] text-white uppercase">{g.label}</h4>
               <ul className="mt-3 space-y-2">
@@ -96,10 +113,11 @@ export function Footer({ settings, nav }: { settings: Settings; nav: NavGroup[] 
       <div className="border-t border-white/5">
         <div className="container-x flex flex-col items-center justify-between gap-2 py-5 text-xs text-zinc-500 sm:flex-row">
           <span>
-            © {year} {settings.siteName} · Jomer Worrhis. Todos los derechos reservados.
+            © {year} {settings.siteName}
+            {owner ? ` · ${owner}` : ""}. Todos los derechos reservados.
           </span>
           <Link href="/admin" className="hover:text-zinc-300">
-            °
+            Administrar sitio
           </Link>
         </div>
       </div>

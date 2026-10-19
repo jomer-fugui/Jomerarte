@@ -17,11 +17,11 @@ import { Icon, SocialIcon } from "./icons";
  */
 export function MobileNav({
   nav,
-  showDonate,
+  donateHref,
   socials,
 }: {
   nav: NavGroup[];
-  showDonate: boolean;
+  donateHref: string | null;
   socials: SocialLink[];
 }) {
   const [open, setOpen] = useState(false);
@@ -66,14 +66,31 @@ export function MobileNav({
             href="/"
             onClick={close}
             className={cn(
-              "flex items-center gap-3 rounded-xl px-3 py-3 font-medium hover:bg-white/5",
-              pathname === "/" ? "bg-accent/15 text-white" : "text-white",
+              "flex items-center gap-3 rounded-xl px-3 py-3 font-medium text-white hover:bg-white/5",
+              pathname === "/" && "bg-accent/15",
             )}
           >
             <House className="h-5 w-5 text-accent-light" /> Inicio
           </Link>
 
           {nav.map((g) => {
+            if (g.direct && g.href) {
+              return (
+                <div key={g.key} className="mt-1 border-t border-white/5 pt-1">
+                  <Link
+                    href={g.href}
+                    onClick={close}
+                    aria-current={isActive(g.href) ? "page" : undefined}
+                    className={cn(
+                      "flex items-center gap-3 rounded-xl px-3 py-3 font-medium text-white hover:bg-white/5",
+                      isActive(g.href) && "bg-accent/15",
+                    )}
+                  >
+                    <Icon name={g.icon} className="h-5 w-5 text-accent-light" /> {g.label}
+                  </Link>
+                </div>
+              );
+            }
             const expanded = !collapsed[g.key];
             return (
               <div key={g.key} className="mt-1 border-t border-white/5 pt-1">
@@ -112,10 +129,10 @@ export function MobileNav({
           })}
         </nav>
 
-        {(showDonate || socials.length > 0) && (
+        {(donateHref || socials.length > 0) && (
           <div className="shrink-0 space-y-3 border-t border-white/10 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-            {showDonate && (
-              <Link href="/Donacion" onClick={close} className="btn-primary w-full">
+            {donateHref && (
+              <Link href={donateHref} onClick={close} className="btn-primary w-full">
                 <Heart className="h-4 w-4" /> Donar
               </Link>
             )}
@@ -147,7 +164,7 @@ export function MobileNav({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="ml-auto grid h-10 w-10 place-items-center rounded-lg border border-white/10 bg-white/5 text-white xl:hidden"
+        className="ml-auto grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-white/10 bg-white/5 text-white xl:hidden"
         aria-label="Abrir menú"
         aria-expanded={open}
       >

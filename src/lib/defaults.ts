@@ -34,6 +34,8 @@ export const DEFAULT_SETTINGS = {
   storeOtherLabel: "",
   pricesNote:
     "Los precios son de referencia y pueden variar según el trabajo, los materiales y la distancia. Consulta sin compromiso.",
+  homePage: "",
+  copyrightName: "Jomer Worrhis",
 };
 
 export type Settings = typeof DEFAULT_SETTINGS;
@@ -42,11 +44,13 @@ export type SettingKey = keyof Settings;
 export type SettingField = {
   key: SettingKey;
   label: string;
-  type: "text" | "textarea" | "color" | "image" | "url" | "email" | "tel";
+  type: "text" | "textarea" | "color" | "image" | "url" | "email" | "tel" | "page";
   hint?: string;
+  /** Solo para el sitio principal o solo para los subdominios */
+  only?: "main" | "sub";
 };
 
-export const SETTINGS_GROUPS: { title: string; description?: string; fields: SettingField[] }[] = [
+export const SETTINGS_GROUPS: { title: string; description?: string; only?: "main" | "sub"; fields: SettingField[] }[] = [
   {
     title: "Identidad y logo",
     description: "Nombre, eslogan, logo y color principal del sitio.",
@@ -67,6 +71,12 @@ export const SETTINGS_GROUPS: { title: string; description?: string; fields: Set
       },
       { key: "accentColor", label: "Color principal", type: "color", hint: "El rojo del logo por defecto: #b3121f" },
       { key: "footerText", label: "Texto del pie de página", type: "textarea" },
+      {
+        key: "copyrightName",
+        label: "Nombre en el copyright del pie de página",
+        type: "text",
+        hint: "Aparece como “© 2026 Nombre del sitio · Jomer Worrhis”. Déjalo vacío para no mostrarlo.",
+      },
     ],
   },
   {
@@ -78,6 +88,13 @@ export const SETTINGS_GROUPS: { title: string; description?: string; fields: Set
       { key: "aboutTitle", label: "Título de la sección “Sobre mí”", type: "text" },
       { key: "aboutText", label: "Texto “Sobre mí”", type: "textarea" },
       { key: "aboutImage", label: "Foto “Sobre mí” (opcional)", type: "image" },
+      {
+        key: "homePage",
+        label: "Página que se muestra en la portada",
+        type: "page",
+        only: "sub",
+        hint: "Su contenido aparece en la portada, debajo del título (por ejemplo el muro de frases o los personajes).",
+      },
     ],
   },
   {
@@ -114,6 +131,7 @@ export const SETTINGS_GROUPS: { title: string; description?: string; fields: Set
   },
   {
     title: "Tiendas externas",
+    only: "main",
     description: "Enlaces a tus perfiles o tiendas. Aparecen como botones en la página Tienda.",
     fields: [
       { key: "storeMercadoLibre", label: "Mi tienda en Mercado Libre", type: "url" },
@@ -129,3 +147,55 @@ export const SETTINGS_GROUPS: { title: string; description?: string; fields: Set
     fields: [{ key: "pricesNote", label: "Nota al pie de las listas de precios", type: "textarea" }],
   },
 ];
+
+/** Ajustes que un subdominio nuevo copia del sitio principal al crearse (después se editan por separado). */
+export const INHERITED_SETTING_KEYS: SettingKey[] = [
+  "accentColor",
+  "logoUrl",
+  "logoLightUrl",
+  "whatsapp",
+  "whatsappMessage",
+  "phone",
+  "email",
+  "address",
+  "hours",
+  "instagram",
+  "facebook",
+  "youtube",
+  "tiktok",
+  "twitter",
+  "telegram",
+  "pricesNote",
+  "copyrightName",
+];
+
+/** Valores por defecto de un subdominio (para lo que todavía no se haya guardado). */
+export function subsiteDefaults(slug: string): Settings {
+  const name = slug ? slug.charAt(0).toUpperCase() + slug.slice(1) : DEFAULT_SETTINGS.siteName;
+  return {
+    ...DEFAULT_SETTINGS,
+    siteName: name,
+    tagline: "",
+    footerText: "",
+    heroTitle: name,
+    heroText: "",
+    heroImage: "",
+    aboutTitle: "",
+    aboutText: "",
+    aboutImage: "",
+    logoUrl: "",
+    logoLightUrl: "",
+    whatsapp: "",
+    phone: "",
+    email: "",
+    address: "",
+    hours: "",
+    storeMercadoLibre: "",
+    storeHotmart: "",
+    storeAliExpress: "",
+    storeAmazon: "",
+    storeOther: "",
+    storeOtherLabel: "",
+    homePage: "",
+  };
+}

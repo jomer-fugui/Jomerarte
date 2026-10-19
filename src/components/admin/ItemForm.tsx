@@ -66,9 +66,12 @@ function Field({ label, hint, children, className }: { label?: string; hint?: st
 export function ItemForm({
   section,
   item,
+  site,
 }: {
   section: Pick<SectionDef, "key" | "fields" | "categories" | "itemLabel" | "layout">;
   item: (ItemValues & { id: number }) | null;
+  /** Sitio en el que se abrió el formulario (evita guardar en otro si se cambia de sitio en otra pestaña) */
+  site?: string;
 }) {
   const [state, formAction] = useActionState<FormState, FormData>(saveItemAction, null);
   const [v, setV] = useState<ItemValues>(item ? { ...EMPTY, ...item } : EMPTY);
@@ -159,6 +162,7 @@ export function ItemForm({
   return (
     <form action={formAction} className="space-y-6">
       <input type="hidden" name="section" value={section.key} />
+      {site !== undefined && <input type="hidden" name="__site" value={site} />}
       {item && <input type="hidden" name="id" value={item.id} />}
       <input type="hidden" name="gallery" value={JSON.stringify(v.gallery)} />
       {!has("linkUrl") && has("platform") && <input type="hidden" name="platform" value={v.platform} />}

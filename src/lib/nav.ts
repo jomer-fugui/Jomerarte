@@ -12,7 +12,15 @@ import {
 import type { CustomSection, PageText } from "./data";
 
 export type NavLink = { href: string; label: string; icon: IconName };
-export type NavGroup = { key: string; label: string; href?: string; icon: IconName; links: NavLink[] };
+export type NavGroup = {
+  key: string;
+  label: string;
+  href?: string;
+  icon: IconName;
+  links: NavLink[];
+  /** Enlace directo en el menú (sin desplegable) */
+  direct?: boolean;
+};
 export type Tab = { key: string; href: string; label: string };
 
 /** Una página dentro de una sección del menú (fija o creada desde el panel). */
@@ -117,4 +125,38 @@ export function groupEntries(group: GroupKey, pages: Record<string, PageText>, c
     });
   }
   return out;
+}
+
+/** Menú de un subdominio: páginas sueltas como enlaces directos y las que comparten “sección” en un desplegable. */
+export function buildSubsiteNav(customs: CustomSection[], pages: Record<string, PageText>): NavGroup[] {
+  const out: NavGroup[] = [];
+  const groups = new Map<string, NavGroup>();
+  for (const c of customs) {
+    if (!c.visible) continue;
+    const label = customLabel(c, pages);
+    const link: NavLink = { href: c.path, label, icon: c.icon };
+    if (!c.menuLabel) {
+      out.push({ key: c.key, label, href: c.path, icon: c.icon, links: [link], direct: true });
+      continue;
+    }
+    const gk = c.menuLabel.toLowerCase();
+    let group = groups.get(gk);
+    if (!group) {
+      group = { key: `g:${gk}`, label: c.menuLabel, icon: c.icon, links: [] };
+      groups.set(gk, group);
+      out.push(group);
+    }
+    group.links.push(link);
+  }
+  return out;
+}
+
+/** Pestañas de una página de subdominio: las páginas de su misma sección del menú. */
+export function buildSubsiteTabs(key: string, customs: CustomSection[], pages: Record<string, PageText>): Tab[] {
+  const me = customs.find((c) => c.key === key);
+  if (!me) return [];
+  const label = me.menuLabel.toLowerCase();
+  const siblings = customs.filter((c) => (c.visible || c.key === key) && c.menuLabel.toLowerCase() === label);
+  if (siblings.length < 2 || siblings.length > 10) return [];
+  return siblings.map((c) => ({ key: c.key, href: c.path, label: customLabel(c, pages) }));
 }

@@ -74,7 +74,9 @@ function createDb(pool: Pool) {
   return drizzle(pool);
 }
 
-type Database = ReturnType<typeof createDb>;
+export type Database = ReturnType<typeof createDb>;
+/** Transacción de Drizzle (para funciones que se ejecutan dentro de db.transaction) */
+export type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
 
 const globalForDb = globalThis as typeof globalThis & {
   __jomerartePool?: Pool;

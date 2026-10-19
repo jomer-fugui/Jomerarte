@@ -861,6 +861,7 @@ export interface PageTypeDef {
 }
 
 const fieldsOf = (key: string): SectionDef["fields"] => SECTIONS.find((s) => s.key === key)?.fields ?? {};
+const catsOf = (key: string): string[] | undefined => SECTIONS.find((s) => s.key === key)?.categories;
 
 /** Tipos de página que se pueden elegir al crear una página nueva. */
 export const PAGE_TYPES: PageTypeDef[] = [
@@ -913,6 +914,7 @@ export const PAGE_TYPES: PageTypeDef[] = [
     icon: "quote",
     itemLabel: "frase",
     fields: fieldsOf("frases"),
+    categories: catsOf("frases"),
   },
   {
     key: "poems",
@@ -921,6 +923,7 @@ export const PAGE_TYPES: PageTypeDef[] = [
     icon: "feather",
     itemLabel: "poesía",
     fields: fieldsOf("poesias"),
+    categories: catsOf("poesias"),
   },
   {
     key: "colmos",
@@ -937,6 +940,7 @@ export const PAGE_TYPES: PageTypeDef[] = [
     icon: "lightbulb",
     itemLabel: "publicación",
     fields: { ...fieldsOf("inventos"), title: "Título", category: "Categoría o estado (opcional)" },
+    categories: catsOf("inventos"),
     detail: true,
   },
   {
@@ -946,6 +950,7 @@ export const PAGE_TYPES: PageTypeDef[] = [
     icon: "hammer",
     itemLabel: "avance",
     fields: fieldsOf("cielinfier-proceso"),
+    categories: catsOf("cielinfier-proceso"),
     detail: true,
   },
   {
@@ -955,6 +960,7 @@ export const PAGE_TYPES: PageTypeDef[] = [
     icon: "swords",
     itemLabel: "personaje",
     fields: fieldsOf("cielinfier-personajes"),
+    categories: catsOf("cielinfier-personajes"),
     detail: true,
   },
   {
@@ -1086,12 +1092,21 @@ export interface CustomPageInfo {
   icon: IconName;
   /** Definición de la lista (null si es una “Página libre”) */
   def: SectionDef | null;
+  /** Solo subdominios: nombre de la sección del menú donde se agrupa ("" = enlace directo en el menú) */
+  menuLabel: string;
 }
 
-export function describeCustomPage(rec: CustomPageRecord): CustomPageInfo {
+/**
+ * Calcula tipo, ubicación y dirección de una página creada desde el panel.
+ *  - Sitio principal: va dentro de una sección fija (Recomendaciones → /Recomendacion/Emprendedores).
+ *  - Subdominio: la dirección es directa (/Torneos) y la sección del menú es un texto libre.
+ */
+export function describeCustomPage(rec: CustomPageRecord, mainSite = true): CustomPageInfo {
   const type = getPageType(rec.pageType || "page");
-  const group: GroupKey = isGroupKey(rec.menuGroup) ? rec.menuGroup : "mas";
-  const path = customPagePath(group, rec.slug || `Pagina-${rec.id}`);
+  const group: GroupKey = mainSite && isGroupKey(rec.menuGroup) ? rec.menuGroup : "mas";
+  const slug = rec.slug || `Pagina-${rec.id}`;
+  const path = mainSite ? customPagePath(group, slug) : `/${slug}`;
+  const menuLabel = mainSite ? "" : (rec.menuGroup || "").trim();
   const icon: IconName = isIconName(rec.icon) ? rec.icon : type.icon;
   const key = customKey(rec.id);
   const name = rec.title || rec.slug;
@@ -1114,7 +1129,7 @@ export function describeCustomPage(rec: CustomPageRecord): CustomPageInfo {
           categoryFree: true,
           detail: type.detail,
         };
-  return { key, type, group, path, icon, def };
+  return { key, type, group, path, icon, def, menuLabel };
 }
 
 const GROUP_TABS: Partial<Record<GroupKey, string[]>> = {

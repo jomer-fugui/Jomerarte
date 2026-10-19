@@ -12,6 +12,7 @@ import {
   SUGGESTED_TYPE,
   cleanSlug,
   getPageType,
+  isGroupKey,
   slugFromTitle,
   type GroupKey,
   type PageTypeKey,
@@ -32,7 +33,8 @@ export type CustomPageValues = {
   linkUrl: string;
   linkLabel: string;
   pageType: PageTypeKey;
-  menuGroup: GroupKey;
+  /** Sitio principal: sección fija del menú · Subdominio: nombre libre de la sección ("" = enlace directo) */
+  menuGroup: string;
   icon: string;
   published: boolean;
 };
@@ -78,14 +80,24 @@ export function CustomPageForm({
   page,
   defaultGroup,
   host,
+  mode = "main",
+  menuSuggestions = [],
+  site = "",
 }: {
   page: (CustomPageValues & { id: number }) | null;
   defaultGroup?: GroupKey;
+  /** Dominio del sitio que se edita (ej: jomerarte.com o juegos.jomerarte.com) */
   host: string;
+  /** main = sitio principal (secciones fijas) · sub = subdominio (menú libre) */
+  mode?: "main" | "sub";
+  menuSuggestions?: string[];
+  site?: string;
 }) {
+  const isMain = mode === "main";
   const [state, formAction] = useActionState<FormState, FormData>(saveCustomPageAction, null);
   const [v, setV] = useState<CustomPageValues>(() => {
     if (page) return { ...EMPTY, ...page };
+    if (!isMain) return { ...EMPTY, menuGroup: "", pageType: "page" };
     const group = defaultGroup ?? "mas";
     return { ...EMPTY, menuGroup: group, pageType: SUGGESTED_TYPE[group] };
   });
@@ -96,7 +108,7 @@ export function CustomPageForm({
   const type = getPageType(v.pageType);
   const isList = type.key !== "page";
   const slug = slugEdited ? v.slug : slugFromTitle(v.title);
-  const base = GROUP_BASE[v.menuGroup];
+  const base = isMain ? GROUP_BASE[isGroupKey(v.menuGroup) ? v.menuGroup : "mas"] : "";
 
   function chooseGroup(g: GroupKey) {
     setV((p) => ({ ...p, menuGroup: g, pageType: typeChosen ? p.pageType : SUGGESTED_TYPE[g] }));
@@ -105,8 +117,9 @@ export function CustomPageForm({
   return (
     <form action={formAction} className="space-y-6">
       {page && <input type="hidden" name="id" value={page.id} />}
+      <input type="hidden" name="__site" value={site} />
       <input type="hidden" name="pageType" value={v.pageType} />
-      <input type="hidden" name="menuGroup" value={v.menuGroup} />
+      {isMain && <input type="hidden" name="menuGroup" value={v.menuGroup} />}
       <input type="hidden" name="icon" value={v.icon} />
       <input type="hidden" name="gallery" value={JSON.stringify(v.gallery)} />
 
@@ -114,7 +127,11 @@ export function CustomPageForm({
         <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-200">{state.error}</div>
       )}
 
-      <Step n={1} title="Nombre y ubicación" hint="Cómo se llama la página y en qué sección del menú aparece.">
+      <Step
+        n={1}
+        title="Nombre y ubicación"
+        hint={isMain ? "Cómo se llama la página y en qué sección del menú aparece." : "Cómo se llama la página y dónde aparece en el menú de este sitio."}
+      >
         <div>
           <label className="label" htmlFor="cp-title">
             Nombre de la página
@@ -124,33 +141,61 @@ export function CustomPageForm({
             name="title"
             value={v.title}
             onChange={(e) => set("title", e.target.value)}
-            placeholder="Ej: Emprendedores"
+            placeholder={isMain ? "Ej: Emprendedores" : "Ej: Torneos"}
             className="input"
             required
           />
         </div>
-        <div>
-          <span className="label">¿En qué sección del menú la ubicas?</span>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {GROUPS.map((g) => (
-              <button
-                key={g.key}
-                type="button"
-                onClick={() => chooseGroup(g.key)}
-                aria-pressed={v.menuGroup === g.key}
-                className={cn(
-                  "flex items-center gap-2 rounded-xl border px-3 py-2.5 text-left text-sm font-medium transition",
-                  v.menuGroup === g.key
-                    ? "border-accent bg-accent/15 text-white"
-                    : "border-white/10 bg-white/5 text-zinc-300 hover:border-white/30",
-                )}
-              >
-                <Icon name={g.icon} className="h-4 w-4 shrink-0 text-accent-light" />
-                {g.label}
-              </button>
-            ))}
+        {isMain ? (
+          <div>
+            <span className="label">¿En qué sección del menú la ubicas?</span>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {GROUPS.map((g) => (
+                <button
+                  key={g.key}
+                  type="button"
+                  onClick={() => chooseGroup(g.key)}
+                  aria-pressed={v.menuGroup === g.key}
+                  className={cn(
+                    "flex items-center gap-2 rounded-xl border px-3 py-2.5 text-left text-sm font-medium transition",
+                    v.menuGroup === g.key
+                      ? "border-accent bg-accent/15 text-white"
+                      : "border-white/10 bg-white/5 text-zinc-300 hover:border-white/30",
+                  )}
+                >
+                  <Icon name={g.icon} className="h-4 w-4 shrink-0 text-accent-light" />
+                  {g.label}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        ) : (
+          <div>
+            <label className="label" htmlFor="cp-menu">
+              Sección del menú (opcional)
+            </label>
+            <input
+              id="cp-menu"
+              name="menuGroup"
+              list="cp-menu-list"
+              value={v.menuGroup}
+              onChange={(e) => set("menuGroup", e.target.value)}
+              maxLength={40}
+              placeholder="Déjalo vacío para un enlace directo en el menú"
+              className="input"
+            />
+            {menuSuggestions.length > 0 && (
+              <datalist id="cp-menu-list">
+                {menuSuggestions.map((s) => (
+                  <option key={s} value={s} />
+                ))}
+              </datalist>
+            )}
+            <p className="mt-1.5 text-xs text-zinc-500">
+              Si escribes el mismo nombre en varias páginas (por ejemplo “Comunidad”), se agrupan en un menú desplegable.
+            </p>
+          </div>
+        )}
         <div>
           <label className="label" htmlFor="cp-slug">
             Dirección de la página
@@ -171,13 +216,11 @@ export function CustomPageForm({
               onBlur={() => {
                 if (slugEdited) set("slug", cleanSlug(v.slug));
               }}
-              placeholder="Emprendedores"
+              placeholder={isMain ? "Emprendedores" : "Torneos"}
               className="w-full min-w-0 bg-transparent px-1 py-2.5 text-sm text-zinc-100 focus:outline-none"
             />
           </div>
-          <p className="mt-1.5 text-xs text-zinc-500">
-            Se completa sola con el nombre. Solo letras, números y guiones.
-          </p>
+          <p className="mt-1.5 text-xs text-zinc-500">Se completa sola con el nombre. Solo letras, números y guiones.</p>
         </div>
       </Step>
 

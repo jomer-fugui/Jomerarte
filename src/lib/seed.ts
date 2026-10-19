@@ -1,18 +1,24 @@
 import { db, getPool } from "@/db";
 import { items, settings } from "@/db/schema";
 import { SEED_ITEMS } from "./seed-data";
+import { ensureLegacySubsites } from "./sites";
 
 /**
  * Crea / actualiza las tablas automáticamente (no hace falta correr comandos en Vercel).
  * Sube SCHEMA_VERSION cuando cambie la estructura para que se vuelva a aplicar.
- *  v3: páginas personalizadas con tipo, ubicación e ícono + correcciones de textos
- *      ("Jomer Worrhis", "Hereje", "Preguntas").
+ *  v3: páginas personalizadas con tipo, ubicación e ícono + correcciones de textos.
+ *  v4: subdominios independientes (tabla "sites" y columna "site" en el contenido y los ajustes).
  */
-const SCHEMA_VERSION = "3";
+const SCHEMA_VERSION = "4";
 
 const SCHEMA_SQL = `
+CREATE TABLE IF NOT EXISTS "sites" (
+  "slug" varchar(63) PRIMARY KEY NOT NULL,
+  "created_at" timestamp with time zone DEFAULT now() NOT NULL
+);
 CREATE TABLE IF NOT EXISTS "items" (
   "id" serial PRIMARY KEY NOT NULL,
+  "site" varchar(63) DEFAULT '' NOT NULL,
   "section" varchar(64) NOT NULL,
   "category" varchar(160) DEFAULT '' NOT NULL,
   "slug" varchar(160) DEFAULT '' NOT NULL,
@@ -30,7 +36,7 @@ CREATE TABLE IF NOT EXISTS "items" (
   "rating" integer DEFAULT 0 NOT NULL,
   "location" text DEFAULT '' NOT NULL,
   "page_type" varchar(32) DEFAULT '' NOT NULL,
-  "menu_group" varchar(32) DEFAULT '' NOT NULL,
+  "menu_group" varchar(60) DEFAULT '' NOT NULL,
   "icon" varchar(32) DEFAULT '' NOT NULL,
   "featured" boolean DEFAULT false NOT NULL,
   "published" boolean DEFAULT true NOT NULL,
@@ -38,7 +44,13 @@ CREATE TABLE IF NOT EXISTS "items" (
   "created_at" timestamp with time zone DEFAULT now() NOT NULL,
   "updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
-CREATE INDEX IF NOT EXISTS "items_section_idx" ON "items" USING btree ("section","sort_order");
+ALTER TABLE "items" ADD COLUMN IF NOT EXISTS "page_type" varchar(32) DEFAULT '' NOT NULL;
+ALTER TABLE "items" ADD COLUMN IF NOT EXISTS "menu_group" varchar(60) DEFAULT '' NOT NULL;
+ALTER TABLE "items" ALTER COLUMN "menu_group" TYPE varchar(60);
+ALTER TABLE "items" ADD COLUMN IF NOT EXISTS "icon" varchar(32) DEFAULT '' NOT NULL;
+ALTER TABLE "items" ADD COLUMN IF NOT EXISTS "site" varchar(63) DEFAULT '' NOT NULL;
+CREATE INDEX IF NOT EXISTS "items_site_section_idx" ON "items" USING btree ("site","section","sort_order");
+DROP INDEX IF EXISTS "items_section_idx";
 CREATE TABLE IF NOT EXISTS "pages" (
   "key" varchar(64) PRIMARY KEY NOT NULL,
   "nav_label" text DEFAULT '' NOT NULL,
@@ -49,9 +61,19 @@ CREATE TABLE IF NOT EXISTS "pages" (
   "updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 CREATE TABLE IF NOT EXISTS "settings" (
-  "key" varchar(100) PRIMARY KEY NOT NULL,
-  "value" text DEFAULT '' NOT NULL
+  "site" varchar(63) DEFAULT '' NOT NULL,
+  "key" varchar(100) NOT NULL,
+  "value" text DEFAULT '' NOT NULL,
+  CONSTRAINT "settings_site_key_pk" PRIMARY KEY("site","key")
 );
+ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "site" varchar(63) DEFAULT '' NOT NULL;
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'settings_site_key_pk') THEN
+    ALTER TABLE "settings" DROP CONSTRAINT IF EXISTS "settings_pkey";
+    ALTER TABLE "settings" ADD CONSTRAINT "settings_site_key_pk" PRIMARY KEY ("site", "key");
+  END IF;
+END $$;
 CREATE TABLE IF NOT EXISTS "media" (
   "id" serial PRIMARY KEY NOT NULL,
   "filename" text NOT NULL,
@@ -63,9 +85,6 @@ CREATE TABLE IF NOT EXISTS "media" (
 );
 ALTER TABLE "media" ADD COLUMN IF NOT EXISTS "url" text DEFAULT '' NOT NULL;
 ALTER TABLE "media" ALTER COLUMN "data" DROP NOT NULL;
-ALTER TABLE "items" ADD COLUMN IF NOT EXISTS "page_type" varchar(32) DEFAULT '' NOT NULL;
-ALTER TABLE "items" ADD COLUMN IF NOT EXISTS "menu_group" varchar(32) DEFAULT '' NOT NULL;
-ALTER TABLE "items" ADD COLUMN IF NOT EXISTS "icon" varchar(32) DEFAULT '' NOT NULL;
 UPDATE "settings" SET "value" = replace("value", 'Jomer Works', 'Jomer Worrhis') WHERE "value" LIKE '%Jomer Works%';
 UPDATE "pages" SET
   "nav_label" = replace(replace("nav_label", 'Herje', 'Hereje'), 'herje', 'hereje'),
@@ -96,8 +115,8 @@ async function migrate(): Promise<void> {
     await client.query("SELECT pg_advisory_xact_lock(727274111)");
     await client.query(SCHEMA_SQL);
     await client.query(
-      `INSERT INTO "settings" ("key", "value") VALUES ('__schema_version', $1)
-       ON CONFLICT ("key") DO UPDATE SET "value" = EXCLUDED."value"`,
+      `INSERT INTO "settings" ("site", "key", "value") VALUES ('', '__schema_version', $1)
+       ON CONFLICT ("site", "key") DO UPDATE SET "value" = EXCLUDED."value"`,
       [SCHEMA_VERSION],
     );
     await client.query("COMMIT");
@@ -139,4 +158,6 @@ async function run(): Promise<void> {
     });
     await tx.insert(items).values(rows);
   });
+  // frases.jomerarte.com y cielinfier.jomerarte.com pasan a ser sitios independientes
+  await ensureLegacySubsites();
 }
