@@ -1,0 +1,60 @@
+Crea un archivo sitemap.xml con todas tus URLs:
+
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://jomerarte.com/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://jomerarte.com/Servicios</loc>
+    <loc>https://jomerarte.com/Servicios/Electricista</loc>
+    <loc>https://jomerarte.com/Servicios/Camaras</loc>
+    <loc>https://jomerarte.com/Servicios/Web</loc>
+    <loc>https://jomerarte.com/Cursos</loc>
+    <loc>https://jomerarte.com/Tienda</loc>
+    <loc>https://jomerarte.com/Tienda/Electricidad</loc>
+    <loc>https://jomerarte.com/Tienda/Electricidad</loc>
+    <loc>https://jomerarte.com/Tienda/Herramientas</loc>
+    <loc>https://jomerarte.com/Tienda/Electrodomesticos</loc>
+    <loc>https://jomerarte.com/Tienda/Hogar</loc>
+    <loc>https://jomerarte.com/Tienda/Escolar</loc>
+    <loc>https://jomerarte.com/Tienda/Tecnologia</loc>
+    <loc>https://jomerarte.com/Tienda/Entrenamiento</loc>
+    <loc>https://jomerarte.com/Recomendacion</loc>
+    <loc>https://jomerarte.com/Recomendacion/Negocios</loc>
+    <loc>https://jomerarte.com/Recomendacion/Negocios</loc>
+    <loc>https://jomerarte.com/Recomendacion/Servicios</loc>
+    <loc>https://jomerarte.com/Recomendacion/Locales</loc>
+    <loc>https://jomerarte.com/Recomendacion/Emprendedores</loc>
+    <loc>https://jomerarte.com/Paginas</loc>
+    <loc>https://jomerarte.com/Truchadas</loc>
+    <loc>https://jomerarte.com/Truchadas/LosChantas</loc>
+    <loc>https://jomerarte.com/Truchadas/ProductoTrucho</loc>
+    <loc>https://jomerarte.com/Truchadas/ServiciosMalos</loc>
+    <loc>https://jomerarte.com/Truchadas/Inventos</loc>
+    <loc>https://jomerarte.com/MisPaginas</loc>
+    <loc>https://jomerarte.com/PreciosServicios</loc>
+    <loc>https://jomerarte.com/Donacion</loc>
+
+    <loc>https://frases.jomerarte.com/</loc>
+    <loc>https://frases.jomerarte.com/Frases</loc>
+    <loc>https://frases.jomerarte.com/Creencias</loc>
+    <loc>https://frases.jomerarte.com/Politica</loc>
+    <loc>https://frases.jomerarte.com/VerdadMentira</loc>
+    <loc>https://frases.jomerarte.com/Otros</loc>
+    <loc>https://frases.jomerarte.com/Poesias</loc>
+    <loc>https://frases.jomerarte.com/Preguntas</loc>
+    <loc>https://frases.jomerarte.com/PobreRico</loc>
+    <loc>https://frases.jomerarte.com/CupidoMalvado</loc>
+    <loc>https://frases.jomerarte.com/MisCanciones</loc>
+
+    <loc>https://juegos.jomerarte.com/</loc>
+    <loc>https://juegos.jomerarte.com/Android</loc>
+    <loc>https://juegos.jomerarte.com/WindowsOffline</loc>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+</urlset>
