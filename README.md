@@ -195,3 +195,31 @@ repositorio**. Por eso, sube siempre la carpeta `src` completa. Importante:
 
 Para comprobarlo: abre `src/proxy.ts` en GitHub; la versión correcta dice *“este archivo REEMPLAZA a la versión
 antigua”* al principio.
+
+---
+
+## 10. Precios automáticos de Mercado Libre (con tu link de afiliado)
+
+Los precios de tus productos de Mercado Libre se actualizan solos **una vez por día o cada 2 días** (lo eliges).
+**Tu link de afiliado no se modifica nunca**: el botón “Comprar” sigue usando tu link; solo cambia el precio.
+Si hay una promoción, se muestra el precio anterior tachado y el “% OFF”; si se queda sin stock, aparece el aviso.
+
+**Configurar (una sola vez):** en **/admin → Precios ML** sigue los pasos:
+
+1. Crea una aplicación gratis en *Mercado Libre Developers → Mis aplicaciones* con tu cuenta.
+2. Pega la **URI de redirección** que te muestra el panel (ej: `https://jomerarte.com/api/mercadolibre/callback`)
+   y marca los permisos de lectura y `offline_access`.
+3. Copia el **App ID** y la **clave secreta** en el panel (o en Vercel como `ML_CLIENT_ID` y `ML_CLIENT_SECRET`).
+4. Pulsa **Conectar con Mercado Libre** y acepta.
+
+**Vincular cada producto:** edítalo y, en el recuadro amarillo *Precio automático de Mercado Libre*:
+
+- Si tu link de afiliado es **largo**, el código se detecta solo.
+- Si es **corto** (`meli.la/…` o `mercadolibre.com/sec/…`), abre el producto en el navegador y pega ese enlace
+  (o el código, ej: `MLA12345678`) y pulsa **Detectar y traer precio**.
+- Funcionan mejor los enlaces de **página de producto** (los que tienen `/p/` en la dirección): Mercado Libre no
+  siempre deja consultar publicaciones sueltas de otros vendedores.
+
+**En Vercel (plan gratuito):** el archivo `vercel.json` ya programa la actualización una vez por día (cerca de las
+6:00 de Argentina). Vercel gratis no permite más de una vez por día. Recomendado: crea la variable `CRON_SECRET`
+con un texto largo al azar para que solo Vercel pueda iniciarla. En el panel puedes **actualizar a mano** cuando quieras.
