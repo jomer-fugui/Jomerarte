@@ -2,7 +2,8 @@ import Link from "next/link";
 import { ArrowLeft, ArrowRight, Download, Gamepad2, HardDrive, MapPin, Tag, User } from "lucide-react";
 import { getItems, type CustomSection, type Item, type PageText } from "@/lib/data";
 import type { Settings } from "@/lib/defaults";
-import { excerpt, itemCategories } from "@/lib/format";
+import { excerpt, formatDate, itemCategories } from "@/lib/format";
+import { formatMoney, mlDiscountPercent, mlStatusLabel } from "@/lib/ml-ref";
 import { buildTabs, groupEntries, type Tab } from "@/lib/nav";
 import {
   GROUPS,
@@ -340,7 +341,23 @@ export async function ItemDetailView({
                 ))}
               </dl>
             )}
-            {item.price && !isGame && <PriceTag price={item.price} unit={item.unit} className="mt-6" />}
+            {item.price && !isGame && (
+              <div className="mt-6">
+                <PriceTag price={item.price} unit={item.unit} />
+                {item.mlSync && item.mlInfo?.checkedAt ? (
+                  <p className="mt-1 text-xs text-zinc-500">
+                    {mlDiscountPercent(item.mlInfo) && item.mlInfo.original ? (
+                      <>
+                        <span className="line-through">{formatMoney(item.mlInfo.original, item.mlInfo.currency)}</span>{" "}
+                        <span className="font-semibold text-emerald-400">{mlDiscountPercent(item.mlInfo)}% OFF</span> ·{" "}
+                      </>
+                    ) : null}
+                    Precio de Mercado Libre, actualizado el {formatDate(item.mlInfo.checkedAt)}
+                    {mlStatusLabel(item.mlInfo) ? <span className="text-amber-300"> · {mlStatusLabel(item.mlInfo)}</span> : null}
+                  </p>
+                ) : null}
+              </div>
+            )}
             <div className="mt-7 flex flex-wrap gap-3">
               {isGame && item.links.length > 0 && (
                 <a href="#descargas" className="btn-primary px-6 py-3">

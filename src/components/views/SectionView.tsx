@@ -22,6 +22,7 @@ import type { Settings } from "@/lib/defaults";
 import type { SectionDef } from "@/lib/sections";
 import { cn, excerpt, foldText, formatDate, itemCategories, slugify } from "@/lib/format";
 import { getPlatform } from "@/lib/platforms";
+import { formatMoney, mlDiscountPercent, mlStatusLabel } from "@/lib/ml-ref";
 import { CopyButton, Gallery, PrintButton } from "../client";
 import { FilterableList } from "../FilterableList";
 import { LinkButtons } from "../LinkButtons";
@@ -252,6 +253,7 @@ function ProductsGrid(props: ViewProps) {
                 className="transition duration-700 group-hover:scale-105"
               />
               {it.platform && <PlatformBadge platform={it.platform} className="absolute top-3 left-3" />}
+              <MlBadges item={it} />
             </Link>
             <div className="flex flex-1 flex-col p-5">
               {cats.length > 0 && (
@@ -264,7 +266,7 @@ function ProductsGrid(props: ViewProps) {
               </h3>
               {it.subtitle && <p className="mt-1 text-sm text-zinc-400">{it.subtitle}</p>}
               <div className="mt-auto pt-4">
-                {it.price && <div className="font-display text-2xl font-bold text-white">{it.price}</div>}
+                <ProductPrice item={it} />
                 <div className="mt-3 flex flex-wrap gap-2">
                   {it.linkUrl ? (
                     <BuyButton url={it.linkUrl} platform={it.platform} label={it.linkLabel} className="flex-1" />
@@ -278,6 +280,37 @@ function ProductsGrid(props: ViewProps) {
         );
       }}
     />
+  );
+}
+
+/** Precio con el valor anterior tachado si Mercado Libre tiene una promoción. */
+function ProductPrice({ item }: { item: Item }) {
+  if (!item.price) return null;
+  const info = item.mlSync ? item.mlInfo : null;
+  const pct = mlDiscountPercent(info);
+  return (
+    <div className="flex flex-wrap items-baseline gap-x-2">
+      <span className="font-display text-2xl font-bold text-white">{item.price}</span>
+      {pct && info?.original ? (
+        <span className="text-sm text-zinc-500 line-through">{formatMoney(info.original, info.currency)}</span>
+      ) : null}
+    </div>
+  );
+}
+
+/** Etiquetas sobre la foto: “20% OFF” y “Sin stock” / “Publicación pausada”. */
+function MlBadges({ item }: { item: Item }) {
+  const info = item.mlSync ? item.mlInfo : null;
+  const pct = mlDiscountPercent(info);
+  const status = mlStatusLabel(info);
+  if (!pct && !status) return null;
+  return (
+    <div className="absolute top-3 right-3 flex flex-col items-end gap-1">
+      {pct ? <span className="rounded-md bg-emerald-500 px-2 py-0.5 text-xs font-bold text-white shadow">{pct}% OFF</span> : null}
+      {status ? (
+        <span className="rounded-md bg-zinc-950/85 px-2 py-0.5 text-[11px] font-semibold text-zinc-200 shadow">{status}</span>
+      ) : null}
+    </div>
   );
 }
 

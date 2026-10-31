@@ -9,6 +9,8 @@ import type { ItemLink } from "@/lib/links";
 import type { FieldKey, SectionDef } from "@/lib/sections";
 import { cn } from "@/lib/format";
 import { CategoryPicker, LinksEditor } from "./fields";
+import { MlPriceBox } from "./MlPriceBox";
+import { isMlUrl, type MlInfo } from "@/lib/ml-ref";
 import { GalleryInput, MediaInput } from "./MediaInput";
 import { SubmitButton } from "./SubmitButton";
 
@@ -32,6 +34,11 @@ export type ItemValues = {
   slug: string;
   featured: boolean;
   published: boolean;
+  /** Mercado Libre: lo escrito en el recuadro, el código vinculado y si el precio se actualiza solo */
+  mlRef: string;
+  mlId: string;
+  mlType: string;
+  mlSync: boolean;
 };
 
 const EMPTY: ItemValues = {
@@ -54,6 +61,10 @@ const EMPTY: ItemValues = {
   slug: "",
   featured: false,
   published: true,
+  mlRef: "",
+  mlId: "",
+  mlType: "",
+  mlSync: true,
 };
 
 const FORMAT_HINT =
@@ -74,6 +85,7 @@ export function ItemForm({
   item,
   site,
   suggestions = [],
+  ml,
 }: {
   section: Pick<SectionDef, "key" | "fields" | "categories" | "itemLabel" | "layout">;
   item: (ItemValues & { id: number }) | null;
@@ -81,6 +93,8 @@ export function ItemForm({
   site?: string;
   /** Categorías que ya se usan en esta sección (para sugerirlas) */
   suggestions?: string[];
+  /** Precio automático de Mercado Libre */
+  ml?: { connected: boolean; info: MlInfo | null; savedId: string };
 }) {
   const [state, formAction] = useActionState<FormState, FormData>(saveItemAction, null);
   const [v, setV] = useState<ItemValues>(() => {
@@ -96,6 +110,8 @@ export function ItemForm({
   const multiCategory = has("category") && section.layout !== "prices";
   const categorySuggestions = Array.from(new Set([...(section.categories ?? []), ...suggestions]));
   const longText = ["story", "custom", "poems", "songs", "characters", "devlog", "inventions", "games"].includes(section.layout);
+  const mlCapable = has("price") && (has("linkUrl") || section.layout === "prices");
+  const mlRelated = v.mlId !== "" || v.platform === "mercadolibre" || isMlUrl(v.linkUrl);
 
   async function autofill() {
     if (!v.linkUrl) return;
@@ -182,6 +198,15 @@ export function ItemForm({
       <input type="hidden" name="gallery" value={JSON.stringify(v.gallery)} />
       {multiCategory && <input type="hidden" name="categories" value={JSON.stringify(v.categories)} />}
       {has("links") && <input type="hidden" name="links" value={JSON.stringify(v.links)} />}
+      {mlCapable && (
+        <>
+          <input type="hidden" name="__ml" value="1" />
+          <input type="hidden" name="mlRef" value={v.mlRef} />
+          <input type="hidden" name="mlId" value={v.mlId} />
+          <input type="hidden" name="mlType" value={v.mlType} />
+          {v.mlSync && <input type="hidden" name="mlSync" value="on" />}
+        </>
+      )}
       {!has("linkUrl") && has("platform") && <input type="hidden" name="platform" value={v.platform} />}
 
       {state?.error && (
@@ -284,6 +309,18 @@ export function ItemForm({
         )}
 
         {section.layout !== "products" && linkBlock}
+        {mlCapable && (
+          <MlPriceBox
+            value={{ mlRef: v.mlRef, mlId: v.mlId, mlType: v.mlType, mlSync: v.mlSync }}
+            onChange={(m) => setV((p) => ({ ...p, ...m }))}
+            onPrice={(price) => set("price", price)}
+            linkUrl={v.linkUrl}
+            connected={ml?.connected ?? false}
+            info={ml?.info ?? null}
+            savedId={ml?.savedId ?? ""}
+            related={mlRelated}
+          />
+        )}
       </section>
 
       {has("links") && (
