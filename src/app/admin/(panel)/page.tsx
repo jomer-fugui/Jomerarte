@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { EyeOff, Globe, Image as ImageIcon, Plus, Settings, Sparkles, Upload } from "lucide-react";
+import { EyeOff, Globe, Image as ImageIcon, Plus, Settings, Sparkles, Tag, Upload } from "lucide-react";
+import { getMlConfig } from "@/lib/mercadolibre";
 import { getCustomSections, getPageTexts, getSectionCounts, getSettings } from "@/lib/data";
 import { ALL_PAGE_DEFS, GROUPS } from "@/lib/sections";
 import { getCurrentSite, getSiteSlugs } from "@/lib/site";
@@ -13,12 +14,13 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
   // Cada subdominio tiene su propio panel
   if (!site.isMain) return <SubsiteDashboard site={site} ok={ok} />;
 
-  const [counts, pages, settings, customs, subsites] = await Promise.all([
+  const [counts, pages, settings, customs, subsites, mlCfg] = await Promise.all([
     getSectionCounts(),
     getPageTexts(),
     getSettings(),
     getCustomSections(),
     getSiteSlugs(),
+    getMlConfig(),
   ]);
   const noLogo = !settings.logoUrl && !settings.logoLightUrl;
 
@@ -48,7 +50,7 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
         </Link>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <Link href="/admin/ajustes" className="card card-hover flex items-center gap-4 p-5">
           <Settings className="h-7 w-7 shrink-0 text-accent-light" />
           <div>
@@ -76,6 +78,15 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
             <p className="font-semibold text-white">Subdominios</p>
             <p className="text-xs text-zinc-400">
               {subsites.length} {subsites.length === 1 ? "sitio independiente" : "sitios independientes"} · crear otro
+            </p>
+          </div>
+        </Link>
+        <Link href="/admin/mercadolibre" className="card card-hover flex items-center gap-4 p-5">
+          <Tag className="h-7 w-7 shrink-0 text-accent-light" />
+          <div>
+            <p className="font-semibold text-white">Precios de Mercado Libre</p>
+            <p className={mlCfg.connected ? "text-xs text-emerald-300" : "text-xs text-zinc-400"}>
+              {mlCfg.connected ? "Conectado · se actualizan solos" : "Actualízalos solos sin tocar tu link"}
             </p>
           </div>
         </Link>

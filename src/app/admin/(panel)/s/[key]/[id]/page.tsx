@@ -6,6 +6,7 @@ import { itemCategories } from "@/lib/format";
 import { siteLabel } from "@/lib/hosts";
 import { describeCustomPage, getPageType, isGroupKey, newItemLabel } from "@/lib/sections";
 import { getCurrentSite } from "@/lib/site";
+import { getMlConfig } from "@/lib/mercadolibre";
 import { ConfirmButton } from "@/components/client";
 import { CustomPageForm, type CustomPageValues } from "@/components/admin/CustomPageForm";
 import { ItemForm, type ItemValues } from "@/components/admin/ItemForm";
@@ -36,6 +37,10 @@ function toValues(it: Item): ItemValues & { id: number } {
     slug: it.slug,
     featured: it.featured,
     published: it.published,
+    mlRef: "",
+    mlId: it.mlId,
+    mlType: it.mlType,
+    mlSync: it.mlSync,
   };
 }
 
@@ -142,7 +147,7 @@ export default async function EditItemPage({
     item = await getItem(Number(id));
     if (!item || item.section !== key || item.site !== site.slug) notFound();
   }
-  const [pages, siblings] = await Promise.all([getPageTexts(), getItems(key, { all: true })]);
+  const [pages, siblings, mlCfg] = await Promise.all([getPageTexts(), getItems(key, { all: true }), getMlConfig()]);
   const usedCategories = Array.from(new Set(siblings.flatMap((s) => itemCategories(s))));
   const label = pages[key]?.navLabel ?? section.navLabel;
   const publicHref = item ? (section.detail ? itemPath(section.path, item) : section.path) : null;
@@ -181,6 +186,7 @@ export default async function EditItemPage({
         item={item ? toValues(item) : null}
         site={site.slug}
         suggestions={usedCategories}
+        ml={{ connected: mlCfg.connected, info: item?.mlInfo ?? null, savedId: item?.mlId ?? "" }}
       />
 
       {item && (

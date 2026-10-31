@@ -36,6 +36,8 @@ import { SITE_COOKIE, getCurrentSite, getSiteSlugs, type SiteContext } from "@/l
 import { createSite, deleteSite } from "@/lib/sites";
 import { isBlobUrl } from "@/lib/storage";
 import { cleanLinks, type ItemLink } from "@/lib/links";
+import { isMlShortLink, isMlUrl, parseMlRef, type MlRef } from "@/lib/ml-ref";
+import { resolveShortLink, syncMlPrices } from "@/lib/mercadolibre";
 
 export type FormState = { error?: string } | null;
 
@@ -241,10 +243,31 @@ export async function saveItemAction(_prev: FormState, formData: FormData): Prom
 
   if (!values.title && !values.content) return { error: "Escribe al menos un título o un contenido." };
 
+  // Precio automático de Mercado Libre (el link de afiliado nunca se modifica)
+  let ml: { mlId: string; mlType: string; mlSync: boolean } | null = null;
+  if (formData.has("__ml")) {
+    const typed = str(formData, "mlRef", 500);
+    let ref: MlRef | null = parseMlRef(typed);
+    const hiddenId = str(formData, "mlId", 40).toUpperCase();
+    const hiddenType = str(formData, "mlType", 10);
+    if (!ref && /^M[A-Z]{2}\d{5,13}$/.test(hiddenId) && (hiddenType === "item" || hiddenType === "product")) {
+      ref = { id: hiddenId, type: hiddenType };
+    }
+    if (!ref && isMlUrl(linkUrl)) ref = parseMlRef(linkUrl);
+    const wantsSync = formData.get("mlSync") === "on";
+    if (!ref && wantsSync) {
+      const short = [typed, linkUrl].find((u) => isMlShortLink(u));
+      if (short) ref = await resolveShortLink(short, 5000).catch(() => null);
+    }
+    ml = { mlId: ref?.id ?? "", mlType: ref?.type ?? "", mlSync: Boolean(ref) && wantsSync };
+  }
+
+  let savedId = id;
   if (id) {
+    const [before] = await db.select({ mlId: items.mlId }).from(items).where(eq(items.id, id)).limit(1);
     await db
       .update(items)
-      .set(values)
+      .set({ ...values, ...(ml ?? {}), ...(ml && before && before.mlId !== ml.mlId ? { mlInfo: {} } : {}) })
       .where(and(eq(items.id, id), eq(items.site, site.slug), eq(items.section, section.key)));
   } else {
     const [first] = await db
@@ -253,9 +276,18 @@ export async function saveItemAction(_prev: FormState, formData: FormData): Prom
       .where(and(eq(items.site, site.slug), eq(items.section, section.key)))
       .orderBy(asc(items.sortOrder))
       .limit(1);
-    await db
+    const [row] = await db
       .insert(items)
-      .values({ ...values, site: site.slug, section: section.key, sortOrder: (first?.sortOrder ?? 1) - 1 });
+      .values({ ...values, ...(ml ?? {}), site: site.slug, section: section.key, sortOrder: (first?.sortOrder ?? 1) - 1 })
+      .returning({ id: items.id });
+    savedId = row.id;
+  }
+  // Trae el precio actual enseguida (si la cuenta está conectada). Si tarda, se actualiza en la próxima ejecución.
+  if (ml?.mlSync) {
+    await Promise.race([
+      syncMlPrices({ ids: [savedId], trigger: "save", budgetMs: 8000 }),
+      new Promise((resolve) => setTimeout(resolve, 9000)),
+    ]).catch(() => null);
   }
   refresh();
   redirect(`/admin/s/${section.key}?ok=${id ? "updated" : "created"}`);

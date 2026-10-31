@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { ExternalLink, Globe, Image as ImageIcon, LayoutDashboard, LogOut, Settings } from "lucide-react";
+import { ExternalLink, Globe, Image as ImageIcon, LayoutDashboard, LogOut, Settings, Tag } from "lucide-react";
 import { requireAdmin } from "@/lib/auth";
 import { getSettings } from "@/lib/data";
 import { siteLabel } from "@/lib/hosts";
@@ -41,6 +41,10 @@ export default async function PanelLayout({ children }: { children: ReactNode })
             <Link href="/admin/sitios" className="navlink hidden items-center gap-1.5 sm:inline-flex" title="Sitios y subdominios">
               <Globe className="h-4 w-4" />
               <span className="hidden md:inline">Sitios</span>
+            </Link>
+            <Link href="/admin/mercadolibre" className="navlink inline-flex items-center gap-1.5" title="Precios de Mercado Libre">
+              <Tag className="h-4 w-4" />
+              <span className="hidden lg:inline">Precios ML</span>
             </Link>
             <Link href="/" target="_blank" className="navlink inline-flex items-center gap-1.5" title="Ver sitio">
               <ExternalLink className="h-4 w-4" />

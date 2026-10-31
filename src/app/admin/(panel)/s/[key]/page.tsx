@@ -120,6 +120,17 @@ export default async function AdminSectionPage({
         </section>
       )}
 
+      {section?.layout === "products" && (
+        <Link href="/admin/mercadolibre" className="card card-hover flex flex-wrap items-center gap-3 p-4 text-sm text-zinc-300">
+          <span className="rounded bg-[#FFE600] px-1.5 py-0.5 text-[10px] font-extrabold text-[#2D3277]">ML</span>
+          <span className="min-w-0 flex-1">
+            ¿Usas links de afiliado de Mercado Libre? Activa los <strong className="text-white">precios automáticos</strong>: se
+            actualizan solos sin tocar tu link.
+          </span>
+          <span className="font-semibold text-accent-light">Configurar →</span>
+        </Link>
+      )}
+
       {section && (
         <section className="card overflow-hidden">
           {list.length === 0 ? (
