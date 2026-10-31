@@ -9,8 +9,9 @@ import { ensureLegacySubsites } from "./sites";
  *  v3: páginas personalizadas con tipo, ubicación e ícono + correcciones de textos.
  *  v4: subdominios independientes (tabla "sites" y columna "site" en el contenido y los ajustes).
  *  v5: varias categorías por publicación y botones con nombre personalizado (descargas).
+ *  v6: precios automáticos de Mercado Libre (código del producto y último precio consultado).
  */
-const SCHEMA_VERSION = "5";
+const SCHEMA_VERSION = "6";
 
 const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS "sites" (
@@ -38,6 +39,10 @@ CREATE TABLE IF NOT EXISTS "items" (
   "unit" text DEFAULT '' NOT NULL,
   "rating" integer DEFAULT 0 NOT NULL,
   "location" text DEFAULT '' NOT NULL,
+  "ml_id" varchar(40) DEFAULT '' NOT NULL,
+  "ml_type" varchar(10) DEFAULT '' NOT NULL,
+  "ml_sync" boolean DEFAULT false NOT NULL,
+  "ml_info" jsonb DEFAULT '{}'::jsonb NOT NULL,
   "page_type" varchar(32) DEFAULT '' NOT NULL,
   "menu_group" varchar(60) DEFAULT '' NOT NULL,
   "icon" varchar(32) DEFAULT '' NOT NULL,
@@ -54,6 +59,10 @@ ALTER TABLE "items" ADD COLUMN IF NOT EXISTS "icon" varchar(32) DEFAULT '' NOT N
 ALTER TABLE "items" ADD COLUMN IF NOT EXISTS "site" varchar(63) DEFAULT '' NOT NULL;
 ALTER TABLE "items" ADD COLUMN IF NOT EXISTS "categories" jsonb DEFAULT '[]'::jsonb NOT NULL;
 ALTER TABLE "items" ADD COLUMN IF NOT EXISTS "links" jsonb DEFAULT '[]'::jsonb NOT NULL;
+ALTER TABLE "items" ADD COLUMN IF NOT EXISTS "ml_id" varchar(40) DEFAULT '' NOT NULL;
+ALTER TABLE "items" ADD COLUMN IF NOT EXISTS "ml_type" varchar(10) DEFAULT '' NOT NULL;
+ALTER TABLE "items" ADD COLUMN IF NOT EXISTS "ml_sync" boolean DEFAULT false NOT NULL;
+ALTER TABLE "items" ADD COLUMN IF NOT EXISTS "ml_info" jsonb DEFAULT '{}'::jsonb NOT NULL;
 UPDATE "items" SET "categories" = jsonb_build_array("category") WHERE "category" <> '' AND "categories" = '[]'::jsonb;
 CREATE INDEX IF NOT EXISTS "items_site_section_idx" ON "items" USING btree ("site","section","sort_order");
 DROP INDEX IF EXISTS "items_section_idx";

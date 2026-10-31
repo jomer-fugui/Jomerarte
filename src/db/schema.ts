@@ -12,6 +12,7 @@ import {
   varchar,
 } from "drizzle-orm/pg-core";
 import type { ItemLink } from "@/lib/links";
+import type { MlInfo } from "@/lib/ml-ref";
 
 const bytea = customType<{ data: Buffer; driverData: Buffer }>({
   dataType() {
@@ -52,6 +53,11 @@ export const items = pgTable(
     unit: text("unit").notNull().default(""),
     rating: integer("rating").notNull().default(0),
     location: text("location").notNull().default(""),
+    /** Mercado Libre: código del producto, tipo (item = publicación · product = página de producto), si el precio se actualiza solo y el último resultado */
+    mlId: varchar("ml_id", { length: 40 }).notNull().default(""),
+    mlType: varchar("ml_type", { length: 10 }).notNull().default(""),
+    mlSync: boolean("ml_sync").notNull().default(false),
+    mlInfo: jsonb("ml_info").$type<MlInfo>().notNull().default({}),
     /** Solo páginas personalizadas: tipo de página, ubicación en el menú e ícono */
     pageType: varchar("page_type", { length: 32 }).notNull().default(""),
     menuGroup: varchar("menu_group", { length: 60 }).notNull().default(""),
