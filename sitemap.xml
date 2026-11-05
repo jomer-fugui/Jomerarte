@@ -8,33 +8,42 @@ Crea un archivo sitemap.xml con todas tus URLs:
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://jomerarte.com/Servicios</loc>
+    <loc>https://jomerarte.com/Servicios/</loc>
     <loc>https://jomerarte.com/Servicios/Electricista</loc>
+    <loc>https://jomerarte.com/Servicios/Electricista/371-lista-de-precios</loc>
+    <loc>https://jomerarte.com/Servicios/Electricista/1-instalacion-monofasica-domiciliaria</loc>
+    <loc>https://jomerarte.com/Servicios/Electricista/101-ducha-electrica</loc>
+    <loc>https://jomerarte.com/Servicios/Electricista/102-iluminacion-de-emergencia</loc>
+    <loc>https://jomerarte.com/Servicios/Electricista/103-ventilador-de-techo</loc>    
+    <loc>https://jomerarte.com/Servicios/Camaras/2-tableros-electricos-y-protecciones</loc>
+    <loc>https://jomerarte.com/Servicios/Electricista/4-luminarias</loc>
+    <loc>https://jomerarte.com/Servicios/Electricista/3-urgencias</loc>
     <loc>https://jomerarte.com/Servicios/Camaras</loc>
+    <loc>https://jomerarte.com/Servicios/Camaras/985-instalacion-de-cerradura-inteligente</loc>
+    <loc>https://jomerarte.com/Servicios/Camaras/5-instalacion-kit-de-camaras-con-materiales-incluido</loc>
+    <loc>https://jomerarte.com/Servicios/Camaras/6-instalacion-de-camaras-wifi-inteligentes-con-materiales-incl</loc>
+    <loc>https://jomerarte.com/Servicios/Camaras/104-instalacion-de-camaras</loc>
     <loc>https://jomerarte.com/Servicios/Web</loc>
-    <loc>https://jomerarte.com/Cursos</loc>
-    <loc>https://jomerarte.com/Tienda</loc>
-    <loc>https://jomerarte.com/Tienda/Electricidad</loc>
-    <loc>https://jomerarte.com/Tienda/Electricidad</loc>
-    <loc>https://jomerarte.com/Tienda/Herramientas</loc>
-    <loc>https://jomerarte.com/Tienda/Electrodomesticos</loc>
-    <loc>https://jomerarte.com/Tienda/Hogar</loc>
-    <loc>https://jomerarte.com/Tienda/Escolar</loc>
-    <loc>https://jomerarte.com/Tienda/Tecnologia</loc>
-    <loc>https://jomerarte.com/Tienda/Entrenamiento</loc>
-    <loc>https://jomerarte.com/Recomendacion</loc>
+    <loc>https://jomerarte.com/Cursos/</loc>
+    <loc>https://jomerarte.com/Cursos/105-se-corta-la-luz-por-un-fallo-en-la-casa</loc>
+    <loc>https://jomerarte.com/Cursos/301-prepararse-para-un-apocalipsis</loc>
+    <loc>https://jomerarte.com/Cursos/302-lista-para-un-apocalipsis</loc>
+    <loc>https://jomerarte.com/Tienda/</loc>
+    <loc>https://jomerarte.com/Tienda/MercadoLibre</loc>
+    <loc>https://jomerarte.com/Recomendacion/</loc>
     <loc>https://jomerarte.com/Recomendacion/Negocios</loc>
-    <loc>https://jomerarte.com/Recomendacion/Negocios</loc>
-    <loc>https://jomerarte.com/Recomendacion/Servicios</loc>
     <loc>https://jomerarte.com/Recomendacion/Locales</loc>
+    <loc>https://jomerarte.com/Recomendacion/Servicios</loc>
+    <loc>https://jomerarte.com/Recomendacion/Marcas</loc>
     <loc>https://jomerarte.com/Recomendacion/Emprendedores</loc>
-    <loc>https://jomerarte.com/Paginas</loc>
-    <loc>https://jomerarte.com/Truchadas</loc>
+    <loc>https://jomerarte.com/Paginas/</loc>
+    <loc>https://jomerarte.com/Truchadas/</loc>
     <loc>https://jomerarte.com/Truchadas/LosChantas</loc>
     <loc>https://jomerarte.com/Truchadas/ProductoTrucho</loc>
     <loc>https://jomerarte.com/Truchadas/ServiciosMalos</loc>
     <loc>https://jomerarte.com/Truchadas/Inventos</loc>
-    <loc>https://jomerarte.com/MisPaginas</loc>
+    <loc>https://jomerarte.com/MisPaginas/</loc>
+    <loc>https://jomerarte.com/Frases/</loc>
     <loc>https://jomerarte.com/PreciosServicios</loc>
     <loc>https://jomerarte.com/Donacion</loc>
 
@@ -49,10 +58,14 @@ Crea un archivo sitemap.xml con todas tus URLs:
     <loc>https://frases.jomerarte.com/PobreRico</loc>
     <loc>https://frases.jomerarte.com/CupidoMalvado</loc>
     <loc>https://frases.jomerarte.com/MisCanciones</loc>
+    <loc>https://frases.jomerarte.com/Donacion</loc>
+    <loc>https://frases.jomerarte.com/MisPaginas</loc>
 
     <loc>https://juegos.jomerarte.com/</loc>
     <loc>https://juegos.jomerarte.com/Android</loc>
     <loc>https://juegos.jomerarte.com/WindowsOffline</loc>
+    <loc>https://juegos.jomerarte.com/Navegador</loc>
+    <loc>https://juegos.jomerarte.com/Lista</loc>
     
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
