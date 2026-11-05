@@ -87,8 +87,8 @@ export async function SubsiteDashboard({ site, ok }: { site: SiteContext; ok?: s
       <section>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h2 className="font-display text-xl font-bold tracking-wide text-white uppercase">Páginas de este sitio</h2>
-          <Link href="/admin/s/custom" className="text-xs font-semibold text-accent-light hover:text-white">
-            Ordenar, ocultar o eliminar páginas →
+          <Link href="/admin/menu" className="text-xs font-semibold text-accent-light hover:text-white">
+            Ordenar menú y páginas →
           </Link>
         </div>
         {customs.length === 0 ? (

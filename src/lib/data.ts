@@ -1,14 +1,21 @@
 import { cache } from "react";
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import { db, isDatabaseConfigured } from "@/db";
 import { items, pages, settings } from "@/db/schema";
 import { DEFAULT_SETTINGS, subsiteDefaults, type Settings } from "./defaults";
+import { buildMenuModel, cleanMenuConfig, type MenuConfig, type MenuModel } from "./nav";
 import {
   ALL_PAGE_DEFS,
+  cleanPageOptions,
   describeCustomPage,
   getSection,
+  isGroupKey,
+  isIconName,
   normalizePath,
   type CustomPageInfo,
+  type GroupKey,
+  type IconName,
+  type PageOptions,
   type SectionDef,
 } from "./sections";
 import { ensureSeeded } from "./seed";
@@ -23,6 +30,10 @@ export type PageText = {
   intro: string;
   imageUrl: string;
   visible: boolean;
+  /** Ícono, sección del menú y opciones (orden de las categorías), ya resueltos */
+  icon: IconName;
+  group: GroupKey;
+  options: PageOptions;
 };
 
 /** Página creada desde el panel, con su tipo, ubicación y dirección ya calculados. */
@@ -64,7 +75,7 @@ export const getCustomSections = cache(async (): Promise<CustomSection[]> => {
   }
 });
 
-/** Textos de las páginas: las fijas del sitio principal y las creadas desde el panel. */
+/** Textos y opciones de las páginas: las predeterminadas del sitio principal y las creadas desde el panel. */
 export const getPageTexts = cache(async (): Promise<Record<string, PageText>> => {
   const map: Record<string, PageText> = {};
   for (const def of ALL_PAGE_DEFS) {
@@ -75,6 +86,9 @@ export const getPageTexts = cache(async (): Promise<Record<string, PageText>> =>
       intro: def.intro,
       imageUrl: def.image ?? "",
       visible: true,
+      icon: def.icon,
+      group: def.group,
+      options: {},
     };
   }
   if (!isDatabaseConfigured()) return map;
@@ -85,7 +99,10 @@ export const getPageTexts = cache(async (): Promise<Record<string, PageText>> =>
       const rows = await db.select().from(pages);
       for (const r of rows) {
         const base = map[r.key];
-        if (!base) continue;
+        const def = ALL_PAGE_DEFS.find((d) => d.key === r.key);
+        if (!base || !def) continue;
+        // Las páginas principales (Servicios, Tienda…) y la lista de páginas nuevas no cambian de sección
+        const movable = !def.hub && def.key !== "custom";
         map[r.key] = {
           key: r.key,
           navLabel: r.navLabel || base.navLabel,
@@ -93,6 +110,9 @@ export const getPageTexts = cache(async (): Promise<Record<string, PageText>> =>
           intro: r.intro,
           imageUrl: r.imageUrl,
           visible: r.visible,
+          icon: isIconName(r.icon) ? r.icon : base.icon,
+          group: movable && isGroupKey(r.menuGroup) ? r.menuGroup : base.group,
+          options: cleanPageOptions(r.options),
         };
       }
     } catch (err) {
@@ -108,9 +128,39 @@ export const getPageTexts = cache(async (): Promise<Record<string, PageText>> =>
       intro: c.item.subtitle,
       imageUrl: c.item.imageUrl,
       visible: c.visible,
+      icon: c.icon,
+      group: c.group,
+      options: cleanPageOptions(c.item.options),
     };
   }
   return map;
+});
+
+/** Orden y nombres del menú del sitio principal. */
+export const getMenuConfig = cache(async (): Promise<MenuConfig> => {
+  if (!isDatabaseConfigured()) return {};
+  try {
+    await ensureSeeded();
+    const [row] = await db
+      .select({ value: settings.value })
+      .from(settings)
+      .where(and(eq(settings.site, ""), eq(settings.key, "__menu")))
+      .limit(1);
+    return row ? cleanMenuConfig(JSON.parse(row.value)) : {};
+  } catch {
+    return {};
+  }
+});
+
+/** Menú del sitio actual con sus secciones y páginas en el orden elegido. */
+export const getMenuModel = cache(async (): Promise<MenuModel> => {
+  const [site, texts, customs, config] = await Promise.all([
+    getCurrentSite(),
+    getPageTexts(),
+    getCustomSections(),
+    getMenuConfig(),
+  ]);
+  return buildMenuModel(texts, customs, config, site.isMain);
 });
 
 /** Elementos de una sección del sitio actual (o del sitio indicado). */
@@ -139,15 +189,21 @@ export async function getItem(id: number): Promise<Item | undefined> {
   return rows[0];
 }
 
-export async function getFeatured(limit = 8): Promise<Item[]> {
-  if (!isDatabaseConfigured()) return [];
+/**
+ * Destacados al azar: en cada visita se eligen otros (máximo `limit`).
+ * `sections` limita la búsqueda a las secciones visibles del sitio.
+ */
+export async function getFeatured(limit = 8, sections?: string[]): Promise<Item[]> {
+  if (!isDatabaseConfigured() || (sections && sections.length === 0)) return [];
   await ensureSeeded();
   const site = await currentSlug();
+  const conds = [eq(items.site, site), eq(items.featured, true), eq(items.published, true), ne(items.section, "custom")];
+  if (sections) conds.push(inArray(items.section, sections));
   return db
     .select()
     .from(items)
-    .where(and(eq(items.site, site), eq(items.featured, true), eq(items.published, true)))
-    .orderBy(asc(items.sortOrder), desc(items.updatedAt))
+    .where(and(...conds))
+    .orderBy(sql`random()`)
     .limit(limit);
 }
 

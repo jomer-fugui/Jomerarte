@@ -5,6 +5,9 @@ import { getCustomSections, getFeatured, getItems, getPageTexts, getSettings, ty
 import { excerpt } from "@/lib/format";
 import type { SectionDef } from "@/lib/sections";
 import { Gallery } from "../client";
+import { JsonLd } from "../JsonLd";
+import { absUrl, hubPageNodes, jsonLdGraph, listPageNodes } from "@/lib/seo";
+import { getSeoContext } from "@/lib/seo-server";
 import { LinkButtons } from "../LinkButtons";
 import { SiteLogo } from "../Logo";
 import { Icon } from "../icons";
@@ -14,11 +17,10 @@ import { SectionBody, itemPath } from "./SectionView";
 
 /** Portada de un subdominio: un sitio independiente con su propio nombre, logo, portada y páginas. */
 export async function SubsiteHome({ category, query }: { category?: string; query?: string } = {}) {
-  const [settings, pages, customs, featured, admin] = await Promise.all([
+  const [settings, pages, customs, admin] = await Promise.all([
     getSettings(),
     getPageTexts(),
     getCustomSections(),
-    getFeatured(8),
     isAdmin(),
   ]);
   const visible = customs.filter((c) => c.visible);
@@ -29,15 +31,39 @@ export async function SubsiteHome({ category, query }: { category?: string; quer
   const label = (c: CustomSection) => pages[c.key]?.navLabel || c.item.title || c.item.slug;
   const defs = new Map<string, SectionDef>();
   for (const c of visible) if (c.def) defs.set(c.key, c.def);
+  // Máximo 8 destacados, elegidos al azar en cada visita
+  const featured = await getFeatured(8, [...defs.keys()]);
   const featuredCards = featured.flatMap((it) => {
     const sec = defs.get(it.section);
     return sec ? [{ it, sec }] : [];
   });
+  const seo = await getSeoContext();
+  const homeUrl = `${seo.base}/`;
+  const homeDescription = settings.seoDescription || settings.heroText || settings.tagline || undefined;
+  const ld = jsonLdGraph(
+    home?.def
+      ? listPageNodes(seo, {
+          section: home.def,
+          items: homeItems,
+          url: homeUrl,
+          name: settings.siteName,
+          description: homeDescription,
+          image: absUrl(seo.base, settings.heroImage),
+        })
+      : hubPageNodes(seo, {
+          url: homeUrl,
+          name: settings.siteName,
+          description: homeDescription,
+          image: absUrl(seo.base, settings.heroImage),
+          entries: visible.map((c) => ({ title: label(c), path: c.path, intro: c.item.subtitle })),
+        }),
+  );
   const showHeroTitle =
     settings.heroTitle.trim() !== "" && settings.heroTitle.trim().toLowerCase() !== settings.siteName.trim().toLowerCase();
 
   return (
     <>
+      <JsonLd data={ld} />
       <section className="relative isolate overflow-hidden border-b border-white/10">
         {settings.heroImage && (
           // eslint-disable-next-line @next/next/no-img-element

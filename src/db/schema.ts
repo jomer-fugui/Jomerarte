@@ -13,6 +13,7 @@ import {
 } from "drizzle-orm/pg-core";
 import type { ItemLink } from "@/lib/links";
 import type { MlInfo } from "@/lib/ml-ref";
+import type { PageOptions } from "@/lib/sections";
 
 const bytea = customType<{ data: Buffer; driverData: Buffer }>({
   dataType() {
@@ -62,6 +63,8 @@ export const items = pgTable(
     pageType: varchar("page_type", { length: 32 }).notNull().default(""),
     menuGroup: varchar("menu_group", { length: 60 }).notNull().default(""),
     icon: varchar("icon", { length: 32 }).notNull().default(""),
+    /** Solo páginas personalizadas: orden y estilo de sus categorías */
+    options: jsonb("options").$type<PageOptions>().notNull().default({}),
     featured: boolean("featured").notNull().default(false),
     published: boolean("published").notNull().default(true),
     sortOrder: integer("sort_order").notNull().default(0),
@@ -79,6 +82,11 @@ export const pages = pgTable("pages", {
   intro: text("intro").notNull().default(""),
   imageUrl: text("image_url").notNull().default(""),
   visible: boolean("visible").notNull().default(true),
+  /** Ícono y sección del menú elegidos en el panel ("" = los originales) */
+  icon: varchar("icon", { length: 32 }).notNull().default(""),
+  menuGroup: varchar("menu_group", { length: 32 }).notNull().default(""),
+  /** Orden y estilo de las categorías */
+  options: jsonb("options").$type<PageOptions>().notNull().default({}),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

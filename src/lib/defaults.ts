@@ -1,3 +1,5 @@
+import { AI_POLICIES, BUSINESS_TYPES, COUNTRIES } from "./seo";
+
 export const DEFAULT_SETTINGS = {
   siteName: "Jomerarte",
   tagline: "Electricidad · Cámaras · Páginas Web · Cursos · Arte",
@@ -36,6 +38,26 @@ export const DEFAULT_SETTINGS = {
     "Los precios son de referencia y pueden variar según el trabajo, los materiales y la distancia. Consulta sin compromiso.",
   homePage: "",
   copyrightName: "Jomer Worrhis",
+  /* Ubicación y zona de trabajo (Google, Google Maps y asistentes con IA) */
+  businessType: "Electrician",
+  ownerName: "Jomer",
+  streetAddress: "",
+  city: "",
+  region: "",
+  postalCode: "",
+  country: "AR",
+  serviceArea: "",
+  mapsUrl: "",
+  latitude: "",
+  longitude: "",
+  openingHours: "",
+  priceRange: "",
+  /* Google e inteligencia artificial */
+  seoTitle: "",
+  seoDescription: "",
+  aiPolicy: "all",
+  googleVerification: "",
+  bingVerification: "",
 };
 
 export type Settings = typeof DEFAULT_SETTINGS;
@@ -44,14 +66,26 @@ export type SettingKey = keyof Settings;
 export type SettingField = {
   key: SettingKey;
   label: string;
-  type: "text" | "textarea" | "color" | "image" | "url" | "email" | "tel" | "page";
+  type: "text" | "textarea" | "color" | "image" | "url" | "email" | "tel" | "page" | "select" | "hours";
   hint?: string;
+  /** Opciones de las listas desplegables */
+  options?: readonly { value: string; label: string }[];
   /** Solo para el sitio principal o solo para los subdominios */
   only?: "main" | "sub";
 };
 
-export const SETTINGS_GROUPS: { title: string; description?: string; only?: "main" | "sub"; fields: SettingField[] }[] = [
+export type SettingsGroup = {
+  /** Ancla para enlazar directo a la sección (/admin/ajustes#ubicacion) */
+  id: string;
+  title: string;
+  description?: string;
+  only?: "main" | "sub";
+  fields: SettingField[];
+};
+
+export const SETTINGS_GROUPS: SettingsGroup[] = [
   {
+    id: "identidad",
     title: "Identidad y logo",
     description: "Nombre, eslogan, logo y color principal del sitio.",
     fields: [
@@ -80,6 +114,7 @@ export const SETTINGS_GROUPS: { title: string; description?: string; only?: "mai
     ],
   },
   {
+    id: "portada",
     title: "Portada (Inicio)",
     fields: [
       { key: "heroTitle", label: "Título principal", type: "text" },
@@ -98,6 +133,7 @@ export const SETTINGS_GROUPS: { title: string; description?: string; only?: "mai
     ],
   },
   {
+    id: "contacto",
     title: "Contacto",
     fields: [
       {
@@ -109,11 +145,107 @@ export const SETTINGS_GROUPS: { title: string; description?: string; only?: "mai
       { key: "whatsappMessage", label: "Mensaje inicial de WhatsApp", type: "text" },
       { key: "phone", label: "Teléfono", type: "tel" },
       { key: "email", label: "Email", type: "email" },
-      { key: "address", label: "Zona / dirección", type: "text" },
-      { key: "hours", label: "Horario de atención", type: "text" },
+      {
+        key: "address",
+        label: "Ubicación que se muestra en el sitio",
+        type: "text",
+        hint: "Ej: Zona sur, Buenos Aires. Si lo dejas vacío se muestra la ciudad y la provincia de “Ubicación y zona de trabajo”.",
+      },
+      {
+        key: "hours",
+        label: "Horario de atención (texto que se muestra)",
+        type: "text",
+        hint: "Si lo dejas vacío, se arma solo con los horarios de “Ubicación y zona de trabajo”.",
+      },
     ],
   },
   {
+    id: "ubicacion",
+    title: "Ubicación y zona de trabajo",
+    description:
+      "Ayuda a Google, Google Maps y a los asistentes con IA (ChatGPT, Gemini, Copilot, Perplexity…) a recomendarte cuando alguien busca lo que haces en tu zona.",
+    fields: [
+      {
+        key: "businessType",
+        label: "¿Qué tipo de sitio es?",
+        type: "select",
+        options: BUSINESS_TYPES,
+        hint: "Si atiendes clientes en una zona (como electricista), elige un tipo de negocio local.",
+      },
+      { key: "ownerName", label: "Tu nombre (autor de las publicaciones)", type: "text" },
+      { key: "city", label: "Ciudad o localidad", type: "text", hint: "Ej: Quilmes" },
+      { key: "region", label: "Provincia o estado", type: "text", hint: "Ej: Buenos Aires" },
+      { key: "country", label: "País", type: "select", options: COUNTRIES.map((c) => ({ value: c.code, label: c.name })) },
+      { key: "postalCode", label: "Código postal (opcional)", type: "text" },
+      {
+        key: "streetAddress",
+        label: "Calle y número (opcional)",
+        type: "text",
+        hint: "Déjalo vacío si trabajas a domicilio y no quieres mostrar tu dirección.",
+      },
+      {
+        key: "serviceArea",
+        label: "Zonas donde trabajas",
+        type: "textarea",
+        hint: "Separadas por comas. Ej: Quilmes, Bernal, Berazategui, Florencio Varela, Avellaneda, CABA",
+      },
+      {
+        key: "mapsUrl",
+        label: "Enlace de tu ficha en Google Maps",
+        type: "url",
+        hint: "Abre tu Perfil de Empresa en Google Maps → Compartir → Copiar enlace. Si el enlace trae las coordenadas, se usan solas.",
+      },
+      { key: "latitude", label: "Latitud (opcional)", type: "text", hint: "Ej: -34.72041" },
+      {
+        key: "longitude",
+        label: "Longitud (opcional)",
+        type: "text",
+        hint: "En Google Maps, haz clic derecho sobre tu ubicación y toca los números para copiarlos.",
+      },
+      { key: "openingHours", label: "Horarios de atención (para Google y las IA)", type: "hours" },
+      { key: "priceRange", label: "Rango de precios (opcional)", type: "text", hint: "Ej: $$ o “Desde $ 12.000”" },
+    ],
+  },
+  {
+    id: "google-ia",
+    title: "Google e inteligencia artificial",
+    description: "Cómo aparece tu sitio en Google, Bing y en los asistentes con IA.",
+    fields: [
+      {
+        key: "seoTitle",
+        label: "Título en Google (opcional)",
+        type: "text",
+        hint: "Hasta ~60 letras, con lo que haces y dónde. Ej: Electricista en Quilmes y zona sur · Jomerarte. Vacío = nombre y eslogan.",
+      },
+      {
+        key: "seoDescription",
+        label: "Descripción para Google y las IA",
+        type: "textarea",
+        hint: "120 a 160 letras: qué haces, dónde y para quién. Ej: Electricista en Quilmes y zona sur: instalaciones, tableros, cámaras de seguridad y páginas web. Presupuestos por WhatsApp.",
+      },
+      {
+        key: "aiPolicy",
+        label: "Asistentes con IA (ChatGPT, Gemini, Claude, Perplexity…)",
+        type: "select",
+        options: AI_POLICIES,
+        hint: "“Sin entrenar modelos” bloquea a GPTBot, ClaudeBot, CCBot y similares, pero deja que ChatGPT, Claude y Perplexity te busquen y recomienden. Gemini usa el mismo permiso para responder y para entrenar, así que se mantiene permitido.",
+      },
+      {
+        key: "googleVerification",
+        label: "Código de verificación de Google Search Console",
+        type: "text",
+        hint: "En Search Console elige el método “Etiqueta HTML” y pega aquí el código (o la etiqueta completa).",
+      },
+      {
+        key: "bingVerification",
+        label: "Código de verificación de Bing Webmaster Tools",
+        type: "text",
+        hint: "Bing alimenta a ChatGPT y a Copilot. Pega el código de la etiqueta msvalidate.01 (o la etiqueta completa).",
+      },
+    ],
+  },
+  {
+    id: "redes",
     title: "Redes sociales",
     fields: [
       { key: "instagram", label: "Instagram (enlace)", type: "url" },
@@ -130,6 +262,7 @@ export const SETTINGS_GROUPS: { title: string; description?: string; only?: "mai
     ],
   },
   {
+    id: "tiendas",
     title: "Tiendas externas",
     only: "main",
     description: "Enlaces a tus perfiles o tiendas. Aparecen como botones en la página Tienda.",
@@ -143,6 +276,7 @@ export const SETTINGS_GROUPS: { title: string; description?: string; only?: "mai
     ],
   },
   {
+    id: "precios",
     title: "Listas de precios",
     fields: [{ key: "pricesNote", label: "Nota al pie de las listas de precios", type: "textarea" }],
   },
@@ -167,6 +301,11 @@ export const INHERITED_SETTING_KEYS: SettingKey[] = [
   "telegram",
   "pricesNote",
   "copyrightName",
+  "ownerName",
+  "country",
+  "city",
+  "region",
+  "aiPolicy",
 ];
 
 /** Valores por defecto de un subdominio (para lo que todavía no se haya guardado). */
@@ -197,5 +336,18 @@ export function subsiteDefaults(slug: string): Settings {
     storeOther: "",
     storeOtherLabel: "",
     homePage: "",
+    businessType: "Person",
+    streetAddress: "",
+    postalCode: "",
+    serviceArea: "",
+    mapsUrl: "",
+    latitude: "",
+    longitude: "",
+    openingHours: "",
+    priceRange: "",
+    seoTitle: "",
+    seoDescription: "",
+    googleVerification: "",
+    bingVerification: "",
   };
 }

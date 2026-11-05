@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import type { Item } from "@/lib/data";
 import type { Settings } from "@/lib/defaults";
-import type { SectionDef } from "@/lib/sections";
+import { sortCategories, type SectionDef } from "@/lib/sections";
 import { cn, excerpt, foldText, formatDate, itemCategories, slugify } from "@/lib/format";
 import { getPlatform } from "@/lib/platforms";
 import { formatMoney, mlDiscountPercent, mlStatusLabel } from "@/lib/ml-ref";
@@ -58,16 +58,9 @@ export function itemPath(basePath: string, item: { id: number; title: string }):
 
 /** Categorías presentes en la lista (primero las sugeridas, en su orden) y cuántos elementos tiene cada una. */
 function categorize(section: SectionDef, items: Item[]) {
-  const counts: Record<string, number> = {};
-  const present: string[] = [];
-  for (const it of items) {
-    for (const c of itemCategories(it)) {
-      if (!(c in counts)) present.push(c);
-      counts[c] = (counts[c] ?? 0) + 1;
-    }
-  }
-  const known = section.categories ?? [];
-  const categories = [...known.filter((c) => c in counts), ...present.filter((c) => !known.includes(c))];
+  const counts = new Map<string, number>();
+  for (const it of items) for (const c of itemCategories(it)) counts.set(c, (counts.get(c) ?? 0) + 1);
+  const categories = sortCategories([...counts.keys()], (c) => counts.get(c) ?? 0, section.options);
   return { categories, counts };
 }
 
@@ -119,7 +112,8 @@ function Filterable({
     <FilterableList
       key={`${category ?? ""}|${query ?? ""}`}
       entries={items.map((it) => ({ id: it.id, cats: itemCategories(it), search: searchText(it), node: render(it) }))}
-      categories={categories.map((c) => ({ name: c, count: counts[c] ?? 0 }))}
+      categories={categories.map((c) => ({ name: c, count: counts.get(c) ?? 0 }))}
+      categoryStyle={section.options?.catStyle}
       initialCat={category ?? ""}
       initialQuery={query ?? ""}
       searchable={alwaysSearch || items.length >= 8}

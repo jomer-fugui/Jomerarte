@@ -75,6 +75,8 @@ export interface SectionDef {
   categories?: string[];
   categoryFree?: boolean;
   detail?: boolean;
+  /** Orden y estilo de las categorías (se elige en el panel) */
+  options?: PageOptions;
   hub?: false;
 }
 
@@ -1145,6 +1147,7 @@ export interface CustomPageRecord {
   pageType: string;
   menuGroup: string;
   icon: string;
+  options?: unknown;
 }
 
 export interface CustomPageInfo {
@@ -1191,6 +1194,7 @@ export function describeCustomPage(rec: CustomPageRecord, mainSite = true): Cust
           categories: type.categories,
           categoryFree: true,
           detail: type.detail,
+          options: cleanPageOptions(rec.options),
         };
   return { key, type, group, path, icon, def, menuLabel };
 }
@@ -1205,4 +1209,50 @@ export function groupTabKeys(group: GroupKey): string[] | null {
   const hub = HUBS.find((h) => h.group === group);
   if (hub) return [hub.key, ...hub.children];
   return GROUP_TABS[group] ?? null;
+}
+
+/* ═════════════ Opciones de cada página: orden y estilo de las categorías ═════════════ */
+
+/** alpha = A→Z · count = más usadas primero · custom = orden elegido a mano */
+export type CatSort = "alpha" | "count" | "custom";
+/** slider = una fila deslizable · dropdown = botón desplegable · chips = todas visibles */
+export type CatStyle = "slider" | "dropdown" | "chips";
+export type PageOptions = { catSort?: CatSort; catOrder?: string[]; catStyle?: CatStyle };
+
+const CAT_SORTS: readonly string[] = ["alpha", "count", "custom"];
+const CAT_STYLES: readonly string[] = ["slider", "dropdown", "chips"];
+
+/** Valida las opciones guardadas (vienen de la base o de un formulario). */
+export function cleanPageOptions(raw: unknown): PageOptions {
+  const o = raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
+  const out: PageOptions = {};
+  if (typeof o.catSort === "string" && CAT_SORTS.includes(o.catSort)) out.catSort = o.catSort as CatSort;
+  if (typeof o.catStyle === "string" && CAT_STYLES.includes(o.catStyle)) out.catStyle = o.catStyle as CatStyle;
+  if (Array.isArray(o.catOrder)) {
+    const seen = new Set<string>();
+    const list: string[] = [];
+    for (const c of o.catOrder) {
+      if (typeof c !== "string") continue;
+      const v = c.replace(/\s+/g, " ").trim().slice(0, 60);
+      if (!v || seen.has(v.toLowerCase())) continue;
+      seen.add(v.toLowerCase());
+      list.push(v);
+      if (list.length >= 300) break;
+    }
+    out.catOrder = list;
+  }
+  return out;
+}
+
+/** Ordena las categorías según lo elegido para la página (por defecto, alfabético). */
+export function sortCategories(names: string[], countOf: (name: string) => number, options: PageOptions = {}): string[] {
+  const alpha = (a: string, b: string) => a.localeCompare(b, "es", { sensitivity: "base", numeric: true });
+  const list = [...names];
+  if (options.catSort === "count") return list.sort((a, b) => countOf(b) - countOf(a) || alpha(a, b));
+  if (options.catSort === "custom") {
+    const rank = new Map((options.catOrder ?? []).map((c, i) => [c.toLowerCase(), i] as const));
+    const pos = (c: string) => rank.get(c.toLowerCase()) ?? Number.MAX_SAFE_INTEGER;
+    return list.sort((a, b) => pos(a) - pos(b) || alpha(a, b));
+  }
+  return list.sort(alpha);
 }

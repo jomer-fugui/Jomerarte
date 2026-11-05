@@ -10,8 +10,9 @@ import { ensureLegacySubsites } from "./sites";
  *  v4: subdominios independientes (tabla "sites" y columna "site" en el contenido y los ajustes).
  *  v5: varias categorías por publicación y botones con nombre personalizado (descargas).
  *  v6: precios automáticos de Mercado Libre (código del producto y último precio consultado).
+ *  v7: orden del menú, edición de páginas predeterminadas y orden/estilo de las categorías.
  */
-const SCHEMA_VERSION = "6";
+const SCHEMA_VERSION = "7";
 
 const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS "sites" (
@@ -46,6 +47,7 @@ CREATE TABLE IF NOT EXISTS "items" (
   "page_type" varchar(32) DEFAULT '' NOT NULL,
   "menu_group" varchar(60) DEFAULT '' NOT NULL,
   "icon" varchar(32) DEFAULT '' NOT NULL,
+  "options" jsonb DEFAULT '{}'::jsonb NOT NULL,
   "featured" boolean DEFAULT false NOT NULL,
   "published" boolean DEFAULT true NOT NULL,
   "sort_order" integer DEFAULT 0 NOT NULL,
@@ -63,6 +65,7 @@ ALTER TABLE "items" ADD COLUMN IF NOT EXISTS "ml_id" varchar(40) DEFAULT '' NOT 
 ALTER TABLE "items" ADD COLUMN IF NOT EXISTS "ml_type" varchar(10) DEFAULT '' NOT NULL;
 ALTER TABLE "items" ADD COLUMN IF NOT EXISTS "ml_sync" boolean DEFAULT false NOT NULL;
 ALTER TABLE "items" ADD COLUMN IF NOT EXISTS "ml_info" jsonb DEFAULT '{}'::jsonb NOT NULL;
+ALTER TABLE "items" ADD COLUMN IF NOT EXISTS "options" jsonb DEFAULT '{}'::jsonb NOT NULL;
 UPDATE "items" SET "categories" = jsonb_build_array("category") WHERE "category" <> '' AND "categories" = '[]'::jsonb;
 CREATE INDEX IF NOT EXISTS "items_site_section_idx" ON "items" USING btree ("site","section","sort_order");
 DROP INDEX IF EXISTS "items_section_idx";
@@ -73,8 +76,14 @@ CREATE TABLE IF NOT EXISTS "pages" (
   "intro" text DEFAULT '' NOT NULL,
   "image_url" text DEFAULT '' NOT NULL,
   "visible" boolean DEFAULT true NOT NULL,
+  "icon" varchar(32) DEFAULT '' NOT NULL,
+  "menu_group" varchar(32) DEFAULT '' NOT NULL,
+  "options" jsonb DEFAULT '{}'::jsonb NOT NULL,
   "updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
+ALTER TABLE "pages" ADD COLUMN IF NOT EXISTS "icon" varchar(32) DEFAULT '' NOT NULL;
+ALTER TABLE "pages" ADD COLUMN IF NOT EXISTS "menu_group" varchar(32) DEFAULT '' NOT NULL;
+ALTER TABLE "pages" ADD COLUMN IF NOT EXISTS "options" jsonb DEFAULT '{}'::jsonb NOT NULL;
 CREATE TABLE IF NOT EXISTS "settings" (
   "site" varchar(63) DEFAULT '' NOT NULL,
   "key" varchar(100) NOT NULL,

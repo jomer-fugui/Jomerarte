@@ -4,17 +4,8 @@ import { getItems, type CustomSection, type Item, type PageText } from "@/lib/da
 import type { Settings } from "@/lib/defaults";
 import { excerpt, formatDate, itemCategories } from "@/lib/format";
 import { formatMoney, mlDiscountPercent, mlStatusLabel } from "@/lib/ml-ref";
-import { buildTabs, groupEntries, type Tab } from "@/lib/nav";
-import {
-  GROUPS,
-  HUBS,
-  getPageDef,
-  groupTabKeys,
-  subnavFor,
-  type GroupKey,
-  type HubDef,
-  type SectionDef,
-} from "@/lib/sections";
+import { buildTabs, groupEntries, menuCrumbs, menuEyebrow, type MenuModel, type Tab } from "@/lib/nav";
+import type { HubDef, SectionDef } from "@/lib/sections";
 import { Gallery } from "../client";
 import { LinkButtons } from "../LinkButtons";
 import { MediaPlayer } from "../media";
@@ -37,30 +28,6 @@ import { SectionBody, itemPath } from "./SectionView";
 
 export { itemPath };
 
-type Crumb = { href: string; label: string };
-
-function eyebrowFor(group: GroupKey, pages: Record<string, PageText>): string {
-  const hub = HUBS.find((h) => h.group === group);
-  if (hub) return pages[hub.key]?.navLabel ?? hub.navLabel;
-  if (group === "mas") return "Jomerarte";
-  return GROUPS.find((g) => g.key === group)?.label ?? "";
-}
-
-function crumbsFor(target: { key: string; group: GroupKey }, pages: Record<string, PageText>): Crumb[] {
-  const crumbs: Crumb[] = [{ href: "/", label: "Inicio" }];
-  const hub = HUBS.find((h) => h.group === target.group);
-  if (hub) {
-    if (hub.key !== target.key) crumbs.push({ href: hub.path, label: pages[hub.key]?.navLabel ?? hub.navLabel });
-    return crumbs;
-  }
-  const lead = (subnavFor(target.key) ?? groupTabKeys(target.group))?.[0];
-  if (lead && lead !== target.key) {
-    const def = getPageDef(lead);
-    if (def) crumbs.push({ href: def.path, label: pages[lead]?.navLabel ?? def.navLabel });
-  }
-  return crumbs;
-}
-
 function textFor(section: SectionDef, pages: Record<string, PageText>): PageText {
   return (
     pages[section.key] ?? {
@@ -70,29 +37,31 @@ function textFor(section: SectionDef, pages: Record<string, PageText>): PageText
       intro: section.intro,
       imageUrl: section.image ?? "",
       visible: true,
+      icon: section.icon,
+      group: section.group,
+      options: section.options ?? {},
     }
   );
 }
 
-/* ───────────────────────── Página de sección (fija o creada desde el panel) */
+/* ───────────────────────── Página de sección (predeterminada o creada desde el panel) */
 export function SectionPage({
   section,
   text,
   items,
   settings,
-  pages,
   tabs,
   admin,
   category,
   query,
   extra,
   eyebrow,
+  menu,
 }: {
   section: SectionDef;
   text: PageText;
   items: Item[];
   settings: Settings;
-  pages: Record<string, PageText>;
   tabs: Tab[];
   admin: boolean;
   category?: string;
@@ -101,6 +70,7 @@ export function SectionPage({
   extra?: Item;
   /** Texto pequeño sobre el título (por defecto, la sección del menú) */
   eyebrow?: string;
+  menu?: MenuModel;
 }) {
   const hasExtra = Boolean(extra && (extra.content || extra.videoUrl || extra.gallery.length > 0 || extra.links.length > 0));
   const actions =
@@ -122,8 +92,8 @@ export function SectionPage({
         intro={text.intro}
         image={text.imageUrl}
         icon={section.icon}
-        eyebrow={eyebrow ?? eyebrowFor(section.group, pages)}
-        crumbs={crumbsFor(section, pages)}
+        eyebrow={eyebrow ?? menuEyebrow(menu, section.key, settings.siteName)}
+        crumbs={menuCrumbs(menu, section.key)}
         tone={section.layout === "bad" ? "danger" : "default"}
       >
         {actions}
@@ -151,20 +121,21 @@ export async function HubView({
   pages,
   settings,
   admin,
-  customs,
+  menu,
 }: {
   hub: HubDef;
   pages: Record<string, PageText>;
   settings: Settings;
   admin: boolean;
-  customs: CustomSection[];
+  menu: MenuModel;
 }) {
   const text = pages[hub.key];
-  const entries = groupEntries(hub.group, pages, customs);
+  // Las páginas de la sección, en el mismo orden que en el menú
+  const entries = groupEntries(menu, hub.group);
   const previews = await Promise.all(
     entries.map((e) => (e.def ? getItems(e.def.key, { limit: 4 }) : Promise.resolve<Item[]>([]))),
   );
-  const tabs = buildTabs(hub.key, hub.group, pages, customs);
+  const tabs = buildTabs(menu, hub.key);
   const danger = hub.key === "truchadas";
 
   const stores = [
@@ -253,7 +224,7 @@ export async function HubView({
           ) : null,
         )}
       </div>
-      {admin && <AdminFab href={`/admin/s/${hub.key}`} label="Editar textos" />}
+      {admin && <AdminFab href={`/admin/pagina/${hub.key}`} label="Editar textos" />}
     </>
   );
 }
@@ -265,12 +236,14 @@ export async function ItemDetailView({
   pages,
   settings,
   admin,
+  menu,
 }: {
   section: SectionDef;
   item: Item;
   pages: Record<string, PageText>;
   settings: Settings;
   admin: boolean;
+  menu?: MenuModel;
 }) {
   const text = textFor(section, pages);
   const all = await getItems(section.key);
@@ -280,7 +253,7 @@ export async function ItemDetailView({
   const others = all.filter((i) => i.id !== item.id).slice(0, 4);
   const isGame = section.layout === "games";
   const isCommerce = section.layout === "products" || section.layout === "services";
-  const crumbs = [...crumbsFor(section, pages), { href: section.path, label: text.navLabel }];
+  const crumbs = [...menuCrumbs(menu, section.key), { href: section.path, label: text.navLabel }];
   const cats = itemCategories(item);
   const specs = isGame
     ? [
@@ -465,16 +438,16 @@ export async function ItemDetailView({
 /* ───────────────────────── Página libre creada desde el panel */
 export function CustomPageView({
   custom,
-  pages,
   tabs,
   admin,
   eyebrow,
+  menu,
 }: {
   custom: CustomSection;
-  pages: Record<string, PageText>;
   tabs: Tab[];
   admin: boolean;
   eyebrow?: string;
+  menu?: MenuModel;
 }) {
   const page = custom.item;
   return (
@@ -484,8 +457,8 @@ export function CustomPageView({
         intro={page.subtitle}
         image={page.imageUrl}
         icon={custom.icon}
-        eyebrow={eyebrow ?? eyebrowFor(custom.group, pages)}
-        crumbs={crumbsFor({ key: custom.key, group: custom.group }, pages)}
+        eyebrow={eyebrow}
+        crumbs={menuCrumbs(menu, custom.key)}
       >
         {page.linkUrl ? (
           <SmartLink href={page.linkUrl} className="btn-primary">

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ArrowDown, ArrowUp, Link2, Plus, Trash2, X } from "lucide-react";
-import { cn } from "@/lib/format";
+import { cn, foldText } from "@/lib/format";
 import { LINK_LABEL_SUGGESTIONS, MAX_LINKS, linkProvider, safeUrl, type ItemLink } from "@/lib/links";
 import { Icon } from "../icons";
 
@@ -29,7 +29,11 @@ export function CategoryPicker({
     onChange(next.slice(0, 20));
     setText("");
   };
-  const extra = suggestions.filter((s) => !has(s));
+  const needle = foldText(text.split(",").pop() ?? "").trim();
+  const extra = suggestions
+    .filter((s) => !has(s))
+    .sort((a, b) => a.localeCompare(b, "es", { sensitivity: "base" }))
+    .filter((s) => !needle || foldText(s).includes(needle));
 
   return (
     <div className="space-y-3">
@@ -50,7 +54,7 @@ export function CategoryPicker({
         ))}
       </div>
       {extra.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex max-h-44 flex-wrap gap-1.5 overflow-y-auto pr-1">
           {extra.map((c) => (
             <button key={c} type="button" onClick={() => toggle(c)} className="chip hover:border-white/30 hover:text-white">
               <Plus className="h-3 w-3" /> {c}
@@ -68,7 +72,7 @@ export function CategoryPicker({
               add();
             }
           }}
-          placeholder="Nueva categoría (puedes escribir varias separadas por comas)"
+          placeholder="Escribe para buscar o crear categorías (varias separadas por comas)"
           className="input"
         />
         <button type="button" onClick={add} disabled={!text.trim()} className="btn-ghost shrink-0 px-3">

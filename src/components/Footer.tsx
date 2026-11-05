@@ -4,6 +4,7 @@ import type { Settings } from "@/lib/defaults";
 import type { NavGroup } from "@/lib/nav";
 import { waLink } from "@/lib/format";
 import { socialLinks } from "@/lib/social";
+import { hoursText, parseHours, splitList } from "@/lib/seo";
 import { SiteLogo } from "./Logo";
 import { SocialIcon } from "./icons";
 
@@ -14,6 +15,9 @@ export function Footer({ settings, nav }: { settings: Settings; nav: NavGroup[] 
   const direct = nav.filter((g) => g.direct && g.href);
   const columns = nav.filter((g) => !g.direct);
   const owner = settings.copyrightName.trim();
+  const place = settings.address || [settings.city, settings.region].filter(Boolean).join(", ");
+  const areas = splitList(settings.serviceArea);
+  const hours = settings.hours || hoursText(parseHours(settings.openingHours));
 
   return (
     <footer className="no-print relative mt-24 border-t border-white/10 bg-black/60">
@@ -50,14 +54,22 @@ export function Footer({ settings, nav }: { settings: Settings; nav: NavGroup[] 
                 </a>
               </li>
             )}
-            {settings.address && (
-              <li className="inline-flex items-center gap-2">
-                <MapPin className="h-4 w-4 text-accent-light" /> {settings.address}
+            {place && (
+              <li className="flex items-start gap-2">
+                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-accent-light" /> {place}
               </li>
             )}
-            {settings.hours && (
-              <li className="flex items-center gap-2">
-                <Clock className="h-4 w-4 text-accent-light" /> {settings.hours}
+            {areas.length > 0 && (
+              <li className="flex items-start gap-2">
+                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-accent-light" />
+                <span>
+                  <span className="text-zinc-500">Zona de trabajo:</span> {areas.join(", ")}
+                </span>
+              </li>
+            )}
+            {hours && (
+              <li className="flex items-start gap-2">
+                <Clock className="mt-0.5 h-4 w-4 shrink-0 text-accent-light" /> {hours}
               </li>
             )}
           </ul>
@@ -117,7 +129,7 @@ export function Footer({ settings, nav }: { settings: Settings; nav: NavGroup[] 
             {owner ? ` · ${owner}` : ""}. Todos los derechos reservados.
           </span>
           <Link href="/admin" className="hover:text-zinc-300">
-            °
+            Administrar sitio
           </Link>
         </div>
       </div>
