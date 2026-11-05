@@ -36,6 +36,7 @@ import { SITE_COOKIE, getCurrentSite, getSiteSlugs, type SiteContext } from "@/l
 import { createSite, deleteSite } from "@/lib/sites";
 import { isBlobUrl } from "@/lib/storage";
 import { cleanLinks, type ItemLink } from "@/lib/links";
+import { notifyItemChange, notifySearchEngines } from "@/lib/indexnow";
 import { isMlShortLink, isMlUrl, parseMlRef, type MlRef } from "@/lib/ml-ref";
 import { resolveShortLink, syncMlPrices } from "@/lib/mercadolibre";
 
@@ -289,6 +290,7 @@ export async function saveItemAction(_prev: FormState, formData: FormData): Prom
       new Promise((resolve) => setTimeout(resolve, 9000)),
     ]).catch(() => null);
   }
+  await notifyItemChange({ id: savedId, site: site.slug, section: section.key, title: values.title });
   refresh();
   redirect(`/admin/s/${section.key}?ok=${id ? "updated" : "created"}`);
 }
@@ -368,6 +370,7 @@ export async function saveCustomPageAction(_prev: FormState, formData: FormData)
       .returning({ id: items.id });
     savedId = row.id;
   }
+  notifySearchEngines(site.slug, [path, "/"]);
   refresh();
   if (pageType === "page") redirect(`/admin/s/custom?ok=${id ? "updated" : "created"}`);
   redirect(`/admin/s/${customKey(savedId)}?ok=${id ? "pageUpdated" : "pageCreated"}`);
@@ -395,6 +398,7 @@ export async function toggleItemAction(formData: FormData) {
   if (row) {
     if (field === "published") await db.update(items).set({ published: !row.published }).where(eq(items.id, id));
     if (field === "featured") await db.update(items).set({ featured: !row.featured }).where(eq(items.id, id));
+    await notifyItemChange(row);
   }
   refresh();
 }
@@ -429,21 +433,28 @@ export async function savePageAction(formData: FormData) {
   await requireAdmin();
   const site = await getCurrentSite();
   const key = str(formData, "key", 64);
-  if (!site.isMain || !getPageDef(key)) redirect("/admin");
+  const def = getPageDef(key);
+  if (!site.isMain || !def || key === "custom") redirect("/admin");
+  const iconRaw = str(formData, "icon", 32);
+  const groupRaw = str(formData, "menuGroup", 32);
   const values = {
     navLabel: str(formData, "navLabel", 200),
     title: str(formData, "title", 500),
     intro: str(formData, "intro", 20000),
     imageUrl: str(formData, "imageUrl", 2000),
     visible: formData.get("visible") === "on",
+    icon: isIconName(iconRaw) && iconRaw !== def.icon ? iconRaw : "",
+    // Las páginas principales (Servicios, Tienda…) no cambian de sección
+    menuGroup: !def.hub && isGroupKey(groupRaw) && groupRaw !== def.group ? groupRaw : "",
     updatedAt: new Date(),
   };
   await db
     .insert(pages)
     .values({ key, ...values })
     .onConflictDoUpdate({ target: pages.key, set: values });
+  notifySearchEngines("", [def.path]);
   refresh();
-  redirect(`/admin/s/${key}?ok=page`);
+  redirect(`/admin/pagina/${key}?ok=1`);
 }
 
 /* ───────────── Ajustes del sitio que se está editando */
@@ -459,6 +470,7 @@ export async function saveSettingsAction(formData: FormData) {
       .values({ site: site.slug, key, value })
       .onConflictDoUpdate({ target: [settings.site, settings.key], set: { value } });
   }
+  notifySearchEngines(site.slug, ["/"]);
   refresh();
   redirect("/admin/ajustes?ok=1");
 }
