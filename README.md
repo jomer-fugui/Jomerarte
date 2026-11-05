@@ -223,3 +223,51 @@ Si hay una promoción, se muestra el precio anterior tachado y el “% OFF”; s
 **En Vercel (plan gratuito):** el archivo `vercel.json` ya programa la actualización una vez por día (cerca de las
 6:00 de Argentina). Vercel gratis no permite más de una vez por día. Recomendado: crea la variable `CRON_SECRET`
 con un texto largo al azar para que solo Vercel pueda iniciarla. En el panel puedes **actualizar a mano** cuando quieras.
+
+---
+
+## 11. Menú y orden, páginas predeterminadas, categorías y destacados
+
+- **Menú y orden** (`/admin/menu`): ordena las secciones del menú y las páginas de cada sección (las predeterminadas
+  y las que creaste, mezcladas), renombra las secciones, oculta páginas y muévelas de sección. Las páginas
+  predeterminadas conservan su dirección (por ejemplo, `/Cursos` sigue siendo `/Cursos`). El botón **Restaurar menú
+  original** vuelve todo como estaba.
+- **Editar páginas predeterminadas**: en cada sección (Electricista, Frases, Inventos…) usa **“Editar nombre, textos,
+  imagen, ícono y ubicación”**. Las páginas principales (Servicios, Tienda, Recomendaciones, No recomendable) también
+  se editan desde ahí; su nombre es el de la sección en el menú.
+- **Categorías**: en cada sección con categorías abre **“Categorías”** para elegir el orden (alfabético —por defecto—,
+  más usadas primero o personalizado con flechas) y cómo las ve el visitante: **deslizables** en una sola fila (por
+  defecto, con botón para ver todas y buscar), **botón desplegable** o **todas visibles**. En el formulario de cada
+  publicación, las sugerencias de categorías se ordenan de la A a la Z y se filtran mientras escribes.
+- **Destacados**: la portada muestra como máximo 8 elementos destacados, elegidos al azar en cada visita. Si quieres
+  más variedad, marca más elementos como destacados (estrella en el panel).
+
+---
+
+## 12. Google y asistentes con IA (ChatGPT, Gemini, Copilot, Claude, Perplexity)
+
+El sitio entrega a los buscadores y a las IA toda tu información en formatos que entienden:
+
+- **Datos estructurados (schema.org)** en cada página: tu negocio (tipo, dirección, coordenadas, zona de trabajo,
+  horarios, teléfono, redes), el buscador del sitio, migas de pan y cada publicación con su tipo: servicios, cursos,
+  productos (con precio y stock de Mercado Libre), juegos, reseñas de recomendaciones, frases, poesías, canciones,
+  capítulos, novedades, listas de precios y preguntas frecuentes.
+- **Metadatos completos**: título, descripción, imagen para compartir, dirección canónica (evita páginas duplicadas),
+  idioma y región (es-AR) y ubicación.
+- **`/llms.txt` y `/llms-full.txt`**: resumen del sitio y todas tus publicaciones en texto, para que las IA lo lean
+  fácil (estándar llmstxt.org).
+- **`robots.txt`** con permisos explícitos para los asistentes con IA (puedes limitarlos en Ajustes).
+- **`sitemap.xml`** con fechas de actualización e imágenes, y **IndexNow**: cada vez que publicas o cambias algo se
+  avisa al instante a Bing (que usan ChatGPT y Copilot).
+
+**Qué tienes que hacer (una vez):**
+
+1. **/admin → Ajustes → Ubicación y zona de trabajo**: tipo de negocio, ciudad, provincia, zonas donde trabajas,
+   horarios y el enlace de tu ficha de Google Maps.
+2. **/admin → Ajustes → Google e inteligencia artificial**: título y descripción para Google (con lo que haces y dónde).
+3. Crea tu **Perfil de Empresa en Google** (business.google.com) con los mismos datos y pide reseñas.
+4. Verifica el sitio en **Google Search Console** y en **Bing Webmaster Tools**, y envía `https://jomerarte.com/sitemap.xml`.
+   Si verificas el dominio por DNS en Search Console, cubre también todos los subdominios.
+5. Revisa **/admin → Google e IA**: muestra qué falta completar, cómo te ve Google y enlaces para probar todo.
+
+> Cada subdominio tiene sus propios datos (en sus Ajustes), su sitemap, su robots.txt y su llms.txt.
