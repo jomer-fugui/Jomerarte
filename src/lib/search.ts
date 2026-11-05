@@ -1,10 +1,8 @@
-import { and, eq } from "drizzle-orm";
-import { db, isDatabaseConfigured } from "@/db";
-import { items } from "@/db/schema";
-import { getCustomSections, getPageTexts } from "./data";
+import { isDatabaseConfigured } from "@/db";
+import { cachedAllPublished, cachedCustomSections, cachedPageTexts } from "./data";
 import { excerpt, foldText, itemCategories, slugify } from "./format";
 import { ALL_PAGE_DEFS, SECTIONS, type IconName, type SectionDef } from "./sections";
-import { getCurrentSite } from "./site";
+import type { SiteContext } from "./site";
 
 export type SearchHit = {
   id: string;
@@ -47,11 +45,15 @@ function scoreOf(tokens: string[], fields: { title: string; cats: string; sub: s
  * Busca en todo el sitio actual (el principal o el subdominio): nombre, categorías, subtítulo y descripción.
  * Solo incluye contenido publicado de páginas visibles.
  */
-export async function searchSite(rawQuery: string): Promise<SearchResults> {
+export async function searchSite(site: SiteContext, rawQuery: string): Promise<SearchResults> {
   const tokens = tokensOf(rawQuery);
   if (tokens.length === 0 || !isDatabaseConfigured()) return { groups: [], categories: [], total: 0 };
 
-  const [site, pages, customs] = await Promise.all([getCurrentSite(), getPageTexts(), getCustomSections()]);
+  const [pages, customs, rows] = await Promise.all([
+    cachedPageTexts(site.slug),
+    cachedCustomSections(site.slug),
+    cachedAllPublished(site.slug),
+  ]);
   const visibleCustoms = customs.filter((c) => c.visible);
 
   // Secciones visibles del sitio actual donde se puede buscar
@@ -118,10 +120,6 @@ export async function searchSite(rawQuery: string): Promise<SearchResults> {
   }
 
   // 2) Contenido de cada sección
-  const rows = await db
-    .select()
-    .from(items)
-    .where(and(eq(items.site, site.slug), eq(items.published, true)));
 
   const groups = new Map<string, SearchGroup>();
   const catCounts = new Map<string, CategoryHit>();

@@ -2,16 +2,17 @@ import type { MetadataRoute } from "next";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { db, isDatabaseConfigured } from "@/db";
 import { items } from "@/db/schema";
-import { getMenuModel } from "./data";
+import { cachedMenuModel } from "./data";
 import { mediaKind } from "./format";
 import type { SectionDef } from "./sections";
 import { absUrl, detailPath } from "./seo";
-import { getBaseUrl } from "./seo-server";
-import { getCurrentSite } from "./site";
+import { cachedSeoContext } from "./seo-server";
+import type { SiteContext } from "./site";
 
-/** Direcciones del sitio actual para el sitemap (y para avisar a los buscadores), con fechas e imágenes. */
-export async function sitemapEntries(): Promise<MetadataRoute.Sitemap> {
-  const [site, base, menu] = await Promise.all([getCurrentSite(), getBaseUrl(), getMenuModel()]);
+/** Direcciones del sitio para el sitemap (y para avisar a los buscadores), con fechas e imágenes. */
+export async function sitemapEntries(site: SiteContext): Promise<MetadataRoute.Sitemap> {
+  const [seo, menu] = await Promise.all([cachedSeoContext(site.slug), cachedMenuModel(site.slug)]);
+  const base = seo.base;
   const newest = new Map<string, Date>();
   let overall: Date | undefined;
   if (isDatabaseConfigured()) {
@@ -55,7 +56,14 @@ export async function sitemapEntries(): Promise<MetadataRoute.Sitemap> {
 
   if (detailSections.size > 0 && isDatabaseConfigured()) {
     const rows = await db
-      .select({ id: items.id, title: items.title, section: items.section, imageUrl: items.imageUrl, gallery: items.gallery, updatedAt: items.updatedAt })
+      .select({
+        id: items.id,
+        title: items.title,
+        section: items.section,
+        imageUrl: items.imageUrl,
+        gallery: items.gallery,
+        updatedAt: items.updatedAt,
+      })
       .from(items)
       .where(and(eq(items.site, site.slug), eq(items.published, true), inArray(items.section, [...detailSections.keys()])));
     for (const r of rows) {

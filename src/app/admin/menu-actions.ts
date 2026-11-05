@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { refreshSite } from "@/lib/revalidate";
 import { redirect } from "next/navigation";
 import { and, asc, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
@@ -30,7 +31,7 @@ function str(fd: FormData, key: string, max: number): string {
 }
 
 function refresh() {
-  revalidatePath("/", "layout");
+  refreshSite();
 }
 
 async function saveMenuConfig(cfg: MenuConfig): Promise<void> {

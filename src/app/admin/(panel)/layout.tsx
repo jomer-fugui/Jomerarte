@@ -15,9 +15,11 @@ export const metadata: Metadata = { title: "Panel de administración", robots: {
 export default async function PanelLayout({ children }: { children: ReactNode }) {
   await requireAdmin();
   const [settings, site, overview] = await Promise.all([getSettings(), getCurrentSite(), getSitesOverview()]);
+  const accent = /^#[0-9a-f]{3,8}$/i.test(settings.accentColor) ? settings.accentColor : "#b3121f";
 
   return (
     <div className="min-h-screen">
+      <style>{`:root{--accent:${accent}}`}</style>
       <header className="sticky top-0 z-40 border-b border-white/10 bg-zinc-950/90 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-6xl items-center gap-2 px-4">
           <Link href="/admin" className="flex shrink-0 items-center gap-2">

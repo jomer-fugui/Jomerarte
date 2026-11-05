@@ -10,7 +10,7 @@ import { getCurrentSite } from "@/lib/site";
 export async function pingAllAction() {
   await requireAdmin();
   const site = await getCurrentSite();
-  const entries = await sitemapEntries();
+  const entries = await sitemapEntries(site);
   const r = await submitToIndexNow(site.slug, entries.map((e) => e.url));
   redirect(`/admin/seo?ping=${r.ok ? "ok" : "error"}&msg=${encodeURIComponent(r.message)}`);
 }

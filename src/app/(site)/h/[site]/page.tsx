@@ -2,26 +2,35 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { JsonLd } from "@/components/JsonLd";
 import { homeCatalogNode, jsonLdGraph, pageMetadata, twitterHandle } from "@/lib/seo";
-import { getDefaultSeo, getSeoContext } from "@/lib/seo-server";
+import { cachedDefaultSeo, cachedSeoContext } from "@/lib/seo-server";
 import { ArrowRight, ChevronDown, CircleHelp, Heart, Quote } from "lucide-react";
-import { isAdmin } from "@/lib/auth";
-import { getCurrentSite } from "@/lib/site";
-import { getCustomSections, getFeatured, getItems, getMenuModel, getPageTexts, getRandomItem, getSettings } from "@/lib/data";
+import { siteFromSlug } from "@/lib/site";
+import {
+  cachedCustomSections,
+  cachedFeatured,
+  cachedItems,
+  cachedMenuModel,
+  cachedPageTexts,
+  cachedRandomItem,
+  cachedSettings,
+} from "@/lib/data";
 import { excerpt, itemCategories } from "@/lib/format";
 import { groupEntries } from "@/lib/nav";
 import { PLATFORMS } from "@/lib/platforms";
 import { getPageDef, type IconName, type SectionDef } from "@/lib/sections";
 import { SiteLogo } from "@/components/Logo";
 import { Icon } from "@/components/icons";
-import { AdminFab, ContactButton, ItemImage, PlatformBadge, RichText, SectionHeading } from "@/components/ui";
+import { ContactButton, ItemImage, PlatformBadge, RichText, SectionHeading } from "@/components/ui";
+import { AdminTools } from "@/components/AdminTools";
 import { itemPath } from "@/components/views/SectionView";
 import { SubsiteHome } from "@/components/views/SubsiteHome";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300;
 
 /** Portada (del sitio principal o de un subdominio): dirección canónica y datos para compartir. */
-export async function generateMetadata(): Promise<Metadata> {
-  const d = await getDefaultSeo();
+export async function generateMetadata({ params }: { params: Promise<{ site: string }> }): Promise<Metadata> {
+  const site = await siteFromSlug((await params).site);
+  const d = await cachedDefaultSeo(site.slug);
   const meta = pageMetadata({
     title: d.title,
     description: d.description,
@@ -48,33 +57,21 @@ const EXPLORE_KEYS = [
   "donacion",
 ];
 
-export default async function HomePage({
-  searchParams,
-}: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
-}) {
-  // Los subdominios tienen su propia portada (con buscador si muestra una lista)
-  const site = await getCurrentSite();
-  if (!site.isMain) {
-    const sp = await searchParams;
-    return (
-      <SubsiteHome
-        category={typeof sp.cat === "string" ? sp.cat : undefined}
-        query={typeof sp.q === "string" ? sp.q : undefined}
-      />
-    );
-  }
+export default async function HomePage({ params }: { params: Promise<{ site: string }> }) {
+  const site = await siteFromSlug((await params).site);
+  // Los subdominios tienen su propia portada
+  if (!site.isMain) return <SubsiteHome siteSlug={site.slug} />;
 
-  const [settings, pages, menu, frase, pregunta, characters, inventos, admin, customs] = await Promise.all([
-    getSettings(),
-    getPageTexts(),
-    getMenuModel(),
-    getRandomItem("frases"),
-    getRandomItem("colmos"),
-    getItems("cielinfier-personajes", { limit: 4 }),
-    getItems("inventos", { limit: 3 }),
-    isAdmin(),
-    getCustomSections(),
+  const slug = site.slug;
+  const [settings, pages, menu, frase, pregunta, characters, inventos, customs] = await Promise.all([
+    cachedSettings(slug),
+    cachedPageTexts(slug),
+    cachedMenuModel(slug),
+    cachedRandomItem(slug, "frases"),
+    cachedRandomItem(slug, "colmos"),
+    cachedItems(slug, "cielinfier-personajes", { limit: 4 }),
+    cachedItems(slug, "inventos", { limit: 3 }),
+    cachedCustomSections(slug),
   ]);
   const visibleCustoms = customs.filter((c) => c.visible);
   const vis = (k: string) => pages[k]?.visible !== false;
@@ -95,8 +92,8 @@ export default async function HomePage({
   const defs = new Map<string, SectionDef>();
   for (const g of menu.groups) for (const e of g.entries) if (e.def && e.visible) defs.set(e.key, e.def);
   // Máximo 8 destacados, elegidos al azar en cada visita entre las secciones visibles
-  const featured = await getFeatured(8, [...defs.keys()]);
-  const seo = await getSeoContext();
+  const featured = await cachedFeatured(slug, 8, [...defs.keys()]);
+  const seo = await cachedSeoContext(slug);
   const catalog = jsonLdGraph([homeCatalogNode(seo, services.map((e) => ({ title: e.title, intro: e.intro, path: e.path })))]);
 
   const ciel = pages["cielinfier-personajes"];
@@ -450,7 +447,7 @@ export default async function HomePage({
         </section>
       )}
 
-      {admin && <AdminFab href="/admin/ajustes" label="Editar portada" />}
+      <AdminTools href="/admin/ajustes" label="Editar portada" />
     </>
   );
 }

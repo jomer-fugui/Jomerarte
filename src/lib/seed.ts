@@ -11,8 +11,9 @@ import { ensureLegacySubsites } from "./sites";
  *  v5: varias categorías por publicación y botones con nombre personalizado (descargas).
  *  v6: precios automáticos de Mercado Libre (código del producto y último precio consultado).
  *  v7: orden del menú, edición de páginas predeterminadas y orden/estilo de las categorías.
+ *  v8: los robots que solo entrenan modelos de IA quedan bloqueados (los asistentes siguen entrando).
  */
-const SCHEMA_VERSION = "7";
+const SCHEMA_VERSION = "8";
 
 const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS "sites" (
@@ -117,6 +118,7 @@ UPDATE "pages" SET
   WHERE "nav_label" ILIKE '%herje%' OR "title" ILIKE '%herje%' OR "intro" ILIKE '%herje%';
 UPDATE "pages" SET "nav_label" = 'Preguntas' WHERE "key" = 'colmos' AND "nav_label" = 'Colmos';
 UPDATE "pages" SET "title" = 'Preguntas' WHERE "key" = 'colmos' AND "title" = 'Colmos';
+UPDATE "settings" SET "value" = 'no-training' WHERE "key" = 'aiPolicy' AND "value" = 'all';
 `;
 
 async function currentSchemaVersion(): Promise<string | null> {

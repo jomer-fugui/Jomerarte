@@ -1,13 +1,12 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
-import { isAdmin } from "@/lib/auth";
 import {
-  getCustomSections,
+  cachedCustomSections,
+  cachedItems,
+  cachedMenuModel,
+  cachedPageTexts,
+  cachedSettings,
   getItem,
-  getItems,
-  getMenuModel,
-  getPageTexts,
-  getSettings,
   resolveCustomPath,
   type CustomSection,
   type PageText,
@@ -29,17 +28,16 @@ import {
   twitterHandle,
   webPageNode,
 } from "@/lib/seo";
-import { getDefaultSeo, getSeoContext } from "@/lib/seo-server";
-import { getCurrentSite, type SiteContext } from "@/lib/site";
+import { cachedDefaultSeo, cachedSeoContext } from "@/lib/seo-server";
+import { siteFromSlug, type SiteContext } from "@/lib/site";
 import { JsonLd } from "@/components/JsonLd";
 import { CustomPageView, HubView, ItemDetailView, SectionPage, itemPath } from "@/components/views/PageViews";
 import { SubsiteHome } from "@/components/views/SubsiteHome";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300;
 
 type Props = {
-  params: Promise<{ slug: string[] }>;
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
+  params: Promise<{ site: string; slug: string[] }>;
 };
 
 /** Tipos de publicación que se comparten como artículo (con fecha) */
@@ -85,21 +83,20 @@ function resolveRequest(slug: string[], site: SiteContext, customs: CustomSectio
 
 /** Título, descripción, imagen y dirección canónica de cada página (Google, redes sociales e IA). */
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { slug } = await params;
-  const [site, pages, customs, admin, d] = await Promise.all([
-    getCurrentSite(),
-    getPageTexts(),
-    getCustomSections(),
-    isAdmin(),
-    getDefaultSeo(),
+  const { site: segment, slug } = await params;
+  const site = await siteFromSlug(segment);
+  const [pages, customs, d] = await Promise.all([
+    cachedPageTexts(site.slug),
+    cachedCustomSections(site.slug),
+    cachedDefaultSeo(site.slug),
   ]);
-  const { r, legacyHome } = resolveRequest(slug, site, customs, admin);
+  const { r, legacyHome } = resolveRequest(slug, site, customs, false);
   const common = { siteName: d.settings.siteName, locale: d.locale, handle: twitterHandle(d.settings.twitter) };
   if (legacyHome) return { alternates: { canonical: "/" } };
   if (!r) return { title: "Página no encontrada", robots: { index: false, follow: true } };
 
   if (r.kind === "detail") {
-    const item = await getItem(r.id);
+    const item = await getItem(r.id, site.slug);
     const text = pages[r.section.key];
     if (!item || item.section !== r.section.key) return { title: text?.title };
     return pageMetadata({
@@ -134,22 +131,20 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   });
 }
 
-export default async function CatchAllPage({ params, searchParams }: Props) {
-  const [{ slug }, sp] = await Promise.all([params, searchParams]);
-  const [site, settings, pages, admin, customs, menu, seo] = await Promise.all([
-    getCurrentSite(),
-    getSettings(),
-    getPageTexts(),
-    isAdmin(),
-    getCustomSections(),
-    getMenuModel(),
-    getSeoContext(),
+export default async function CatchAllPage({ params }: Props) {
+  const { site: segment, slug } = await params;
+  const site = await siteFromSlug(segment);
+  const [settings, pages, customs, menu, seo] = await Promise.all([
+    cachedSettings(site.slug),
+    cachedPageTexts(site.slug),
+    cachedCustomSections(site.slug),
+    cachedMenuModel(site.slug),
+    cachedSeoContext(site.slug),
   ]);
-  const category = typeof sp.cat === "string" ? sp.cat : undefined;
-  const query = typeof sp.q === "string" ? sp.q : undefined;
+  const admin = false;
   const { r, customMatch, path, legacyHome } = resolveRequest(slug, site, customs, admin);
 
-  if (legacyHome) return <SubsiteHome category={category} query={query} />;
+  if (legacyHome) return <SubsiteHome siteSlug={site.slug} />;
   if (!r) notFound();
 
   if (r.kind !== "detail" && path !== r.canonical) redirect(r.canonical);
@@ -180,7 +175,7 @@ export default async function CatchAllPage({ params, searchParams }: Props) {
     return (
       <>
         <JsonLd data={ld} />
-        <HubView hub={hub} pages={pages} settings={settings} admin={admin} menu={menu} />
+        <HubView hub={hub} pages={pages} settings={settings} admin={admin} menu={menu} siteSlug={site.slug} />
       </>
     );
   }
@@ -221,7 +216,7 @@ export default async function CatchAllPage({ params, searchParams }: Props) {
   };
 
   if (r.kind === "detail") {
-    const item = await getItem(r.id);
+    const item = await getItem(r.id, site.slug);
     if (!item || item.section !== section.key || item.site !== site.slug || (!item.published && !admin)) notFound();
     const proper = itemPath(section.path, item);
     if (path !== proper) redirect(proper);
@@ -236,12 +231,20 @@ export default async function CatchAllPage({ params, searchParams }: Props) {
     return (
       <>
         <JsonLd data={ld} />
-        <ItemDetailView section={section} item={item} pages={pages} settings={settings} admin={admin} menu={menu} />
+        <ItemDetailView
+          section={section}
+          item={item}
+          pages={pages}
+          settings={settings}
+          admin={admin}
+          menu={menu}
+          siteSlug={site.slug}
+        />
       </>
     );
   }
 
-  const items = await getItems(section.key);
+  const items = await cachedItems(site.slug, section.key, {});
   const ld = jsonLdGraph([
     breadcrumbNode(seo, [...menuCrumbs(menu, section.key), { href: section.path, label: text.navLabel }]),
     ...listPageNodes(seo, {
@@ -263,8 +266,6 @@ export default async function CatchAllPage({ params, searchParams }: Props) {
         settings={settings}
         tabs={tabsFor(section.key)}
         admin={admin}
-        category={category}
-        query={query}
         eyebrow={eyebrowFor(section.key)}
         menu={menu}
         extra={customMatch?.kind === "section" ? customMatch.custom.item : undefined}

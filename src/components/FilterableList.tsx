@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { ChevronDown, ChevronLeft, ChevronRight, LayoutGrid, Search, X } from "lucide-react";
 import { cn, foldText } from "@/lib/format";
 import type { CatStyle } from "@/lib/sections";
@@ -41,8 +41,23 @@ export function FilterableList({
   className?: string;
   categoryStyle?: CatStyle;
 }) {
-  const [query, setQuery] = useState(initialQuery);
-  const [cat, setCat] = useState(initialCat);
+  /**
+   * La página se sirve desde la caché (siempre igual), así que la búsqueda y la categoría de la
+   * dirección (?q=…&cat=…) se leen en el navegador: así los enlaces a una categoría siguen
+   * funcionando. `useSyncExternalStore` permite leer la dirección sin romper la hidratación.
+   */
+  const urlSearch = useSyncExternalStore(subscribeToUrl, currentUrlSearch, () => "");
+  const fromUrl = useMemo(() => {
+    const params = new URLSearchParams(urlSearch);
+    return { query: params.get("q") ?? initialQuery, cat: params.get("cat") ?? initialCat };
+  }, [urlSearch, initialQuery, initialCat]);
+
+  // Lo que escribe el visitante manda sobre lo que venía en la dirección.
+  const [typed, setTyped] = useState<{ query: string; cat: string } | null>(null);
+  const query = typed?.query ?? fromUrl.query;
+  const cat = typed?.cat ?? fromUrl.cat;
+  const setQuery = (value: string) => setTyped({ query: value, cat });
+  const setCat = (value: string) => setTyped({ query, cat: value });
   const first = useRef(true);
 
   // Guarda la búsqueda en la dirección (sin recargar) para poder compartir el enlace
@@ -68,13 +83,10 @@ export function FilterableList({
     () => entries.filter((e) => (!cat || e.cats.includes(cat)) && tokens.every((t) => e.search.includes(t))),
     [entries, cat, tokens],
   );
-  const showSearch = searchable || initialQuery !== "";
+  const showSearch = searchable || query !== "";
   const showCats = categories.length >= 2 || (cat !== "" && categories.length > 0);
   const filtering = tokens.length > 0 || cat !== "";
-  const clear = () => {
-    setQuery("");
-    setCat("");
-  };
+  const clear = () => setTyped({ query: "", cat: "" });
 
   return (
     <div className="space-y-6">
@@ -400,4 +412,14 @@ function CategoryBar({
       {panel}
     </div>
   );
+}
+
+/** Suscribe a los cambios de la dirección (atrás/adelante del navegador). */
+function subscribeToUrl(onChange: () => void): () => void {
+  window.addEventListener("popstate", onChange);
+  return () => window.removeEventListener("popstate", onChange);
+}
+
+function currentUrlSearch(): string {
+  return window.location.search;
 }

@@ -1,11 +1,12 @@
 import { isDatabaseConfigured } from "@/db";
-import { getItems, getMenuModel, type Item } from "./data";
+import { cachedItems, cachedMenuModel, type Item } from "./data";
 import { excerpt, itemCategories, waLink } from "./format";
 import { safeUrl } from "./links";
 import type { MenuEntry } from "./nav";
 import type { SectionDef } from "./sections";
 import { absUrl, aiPolicyOf, countryInfo, detailPath, hoursText, parseHours, splitList } from "./seo";
-import { getSeoContext } from "./seo-server";
+import { cachedSeoContext } from "./seo-server";
+import { type SiteContext } from "./site";
 
 /**
  * llms.txt (https://llmstxt.org): un resumen en texto del sitio pensado para los asistentes con IA.
@@ -54,9 +55,9 @@ function itemBlock(base: string, section: SectionDef, it: Item): string {
   return lines.join("\n");
 }
 
-export async function buildLlmsTxt(full: boolean): Promise<string | null> {
+export async function buildLlmsTxt(site: SiteContext, full: boolean): Promise<string | null> {
   if (!isDatabaseConfigured()) return "# Sitio en configuración\n";
-  const [ctx, menu] = await Promise.all([getSeoContext(), getMenuModel()]);
+  const [ctx, menu] = await Promise.all([cachedSeoContext(site.slug), cachedMenuModel(site.slug)]);
   const s = ctx.settings;
   if (aiPolicyOf(s.aiPolicy) === "block") return null;
   const base = ctx.base;
@@ -121,7 +122,7 @@ export async function buildLlmsTxt(full: boolean): Promise<string | null> {
     const block: string[] = [`## ${e.title}`, "", `Página: ${base}${e.path}`];
     if (e.intro) block.push("", excerpt(e.intro, 600));
     if (e.def) {
-      const list = await getItems(e.def.key);
+      const list = await cachedItems(site.slug, e.def.key, {});
       if (list.length) block.push("", ...list.map((it) => itemBlock(base, e.def as SectionDef, it)));
     }
     const page = e.custom?.item;

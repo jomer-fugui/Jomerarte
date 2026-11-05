@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { refreshSite } from "@/lib/revalidate";
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
 import {
@@ -42,14 +43,14 @@ export async function disconnectMlAction() {
 export async function syncMlNowAction() {
   await requireAdmin();
   await syncMlPrices({ trigger: "manual", budgetMs: 50_000 });
-  revalidatePath("/", "layout");
+  refreshSite();
   redirect("/admin/mercadolibre?ok=sync");
 }
 
 export async function detectMlCodesAction() {
   await requireAdmin();
   const r = await detectMissingMlCodes();
-  revalidatePath("/", "layout");
+  refreshSite();
   redirect(`/admin/mercadolibre?detected=${r.detected}&failed=${r.failed}`);
 }
 
