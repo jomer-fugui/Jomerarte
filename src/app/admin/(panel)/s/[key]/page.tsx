@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import {
   ArrowDown,
   ArrowUp,
@@ -7,22 +7,23 @@ import {
   Eye,
   EyeOff,
   LayoutList,
+  ListOrdered,
   Pencil,
   Plus,
   Settings2,
   Star,
   Trash2,
 } from "lucide-react";
-import { getAnySection, getCustomSections, getItems, getPageTexts, type CustomSection } from "@/lib/data";
-import { getCurrentSite } from "@/lib/site";
+import { getAnySection, getCustomSections, getItems, getMenuModel, getPageTexts, type CustomSection } from "@/lib/data";
 import { cn, excerpt, itemCategories, mediaThumb } from "@/lib/format";
+import { findMenuGroup } from "@/lib/nav";
 import { getPageDef, groupLabel, type PageDef } from "@/lib/sections";
+import { getCurrentSite } from "@/lib/site";
 import { ConfirmButton } from "@/components/client";
 import { Icon } from "@/components/icons";
-import { MediaInput } from "@/components/admin/MediaInput";
-import { SubmitButton } from "@/components/admin/SubmitButton";
+import { CategorySettings } from "@/components/admin/CategorySettings";
 import { itemPath } from "@/components/views/SectionView";
-import { deleteItemAction, moveItemAction, savePageAction, toggleItemAction } from "../../../actions";
+import { deleteItemAction, moveItemAction, toggleItemAction } from "../../../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +33,7 @@ const OK: Record<string, string> = {
   page: "Textos de la página guardados.",
   pageCreated: "¡Página creada! Ya aparece en el menú. Ahora agrega su contenido con el botón “Agregar”.",
   pageUpdated: "Página guardada.",
+  categorias: "Orden y estilo de las categorías guardados.",
 };
 
 export default async function AdminSectionPage({
@@ -44,21 +46,27 @@ export default async function AdminSectionPage({
   const [{ key }, { ok }, site] = await Promise.all([params, searchParams, getCurrentSite()]);
   // Los subdominios solo tienen páginas personalizadas
   const staticDef = site.isMain || key === "custom" ? getPageDef(key) : undefined;
+  // Las páginas principales (Servicios, Tienda…) no tienen lista propia: se editan en su pantalla
+  if (staticDef?.hub) redirect(`/admin/pagina/${key}`);
   const found = staticDef ? null : await getAnySection(key);
   if (!staticDef && !found) notFound();
   const def: PageDef = staticDef ?? found!.section;
   const custom = found?.custom;
   const isCustomList = key === "custom";
-  const where = (c: CustomSection) => (site.isMain ? groupLabel(c.group) : c.menuLabel ? `el menú “${c.menuLabel}”` : "el menú principal");
 
-  const [pages, customs] = await Promise.all([
+  const [pages, customs, menu] = await Promise.all([
     getPageTexts(),
     isCustomList ? getCustomSections() : Promise.resolve<CustomSection[]>([]),
+    getMenuModel(),
   ]);
-  const text = pages[key] ?? { key, navLabel: def.navLabel, title: def.title, intro: def.intro, imageUrl: "", visible: true };
+  const text = pages[key];
+  const navLabel = text?.navLabel ?? def.navLabel;
   const section = def.hub ? null : def;
   const list = section ? await getItems(key, { all: true }) : [];
   const infoById = new Map(customs.map((c) => [c.item.id, c] as const));
+  const labelOf = (g: string) => menu.groups.find((x) => x.key === g)?.label ?? groupLabel(g);
+  const where = (c: CustomSection) =>
+    site.isMain ? labelOf(c.group) : c.menuLabel ? `el menú “${c.menuLabel}”` : "el menú principal";
   const viewHref = custom ? custom.path : isCustomList ? null : def.path;
   const addHref = isCustomList ? "/admin/s/custom/nuevo" : `/admin/s/${key}/nuevo`;
   const subtitle = isCustomList
@@ -66,6 +74,15 @@ export default async function AdminSectionPage({
     : custom
       ? `${custom.path} · ${custom.type.label} · en ${where(custom)}`
       : def.path;
+  const isFixed = Boolean(staticDef) && !isCustomList;
+  const fixedGroup = isFixed ? findMenuGroup(menu, key) : null;
+  // En el sitio principal, el orden de las páginas nuevas se cambia en “Menú y orden” (junto con las predeterminadas)
+  const canReorder = !(isCustomList && site.isMain);
+  // Categorías de la página: orden y estilo para los visitantes
+  const catCapable = Boolean(section && !isCustomList && section.fields.category && section.layout !== "prices");
+  const catCounts = new Map<string, number>();
+  for (const it of list) for (const c of itemCategories(it)) catCounts.set(c, (catCounts.get(c) ?? 0) + 1);
+  const catList = [...catCounts.entries()].map(([name, count]) => ({ name, count }));
 
   return (
     <div className="space-y-8">
@@ -73,16 +90,16 @@ export default async function AdminSectionPage({
         <Link href="/admin" className="hover:text-white">
           Panel
         </Link>{" "}
-        / <span className="text-zinc-300">{text.navLabel}</span>
+        / <span className="text-zinc-300">{navLabel}</span>
       </nav>
 
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex items-center gap-3">
           <span className="grid h-12 w-12 place-items-center rounded-xl bg-accent/15 text-accent-light">
-            <Icon name={custom?.icon ?? def.icon} className="h-6 w-6" />
+            <Icon name={custom?.icon ?? text?.icon ?? def.icon} className="h-6 w-6" />
           </span>
           <div>
-            <h1 className="font-display text-3xl font-bold text-white uppercase">{text.navLabel}</h1>
+            <h1 className="font-display text-3xl font-bold text-white uppercase">{navLabel}</h1>
             <p className="text-sm text-zinc-500">{subtitle}</p>
           </div>
         </div>
@@ -104,19 +121,44 @@ export default async function AdminSectionPage({
         <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-4 text-sm text-emerald-200">{OK[ok]}</div>
       )}
 
+      {isFixed && (
+        <section className="card flex flex-wrap items-center justify-between gap-4 p-5">
+          <div className="min-w-0">
+            <p className="font-display text-lg font-bold tracking-wide text-white uppercase">Configuración de la página</p>
+            <p className="text-sm text-zinc-400">
+              Nombre en el menú: <strong className="text-zinc-200">{navLabel}</strong> · Sección:{" "}
+              <strong className="text-zinc-200">{fixedGroup?.label ?? "—"}</strong> ·{" "}
+              {text?.visible === false ? "Oculta" : "Visible"}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Link href={`/admin/pagina/${key}`} className="btn-ghost">
+              <Settings2 className="h-4 w-4" /> Editar nombre, textos, imagen, ícono y ubicación
+            </Link>
+            <Link href="/admin/menu" className="btn-ghost">
+              <ListOrdered className="h-4 w-4" /> Ordenar en el menú
+            </Link>
+          </div>
+        </section>
+      )}
+
       {custom && (
         <section className="card flex flex-wrap items-center justify-between gap-4 p-5">
           <div>
             <p className="font-display text-lg font-bold tracking-wide text-white uppercase">Configuración de la página</p>
             <p className="text-sm text-zinc-400">
               Tipo: <strong className="text-zinc-200">{custom.type.label}</strong> · Ubicación:{" "}
-              <strong className="text-zinc-200">{where(custom)}</strong> ·{" "}
-              {custom.visible ? "Publicada" : "Oculta"}
+              <strong className="text-zinc-200">{where(custom)}</strong> · {custom.visible ? "Publicada" : "Oculta"}
             </p>
           </div>
-          <Link href={`/admin/s/custom/${custom.item.id}`} className="btn-ghost">
-            <Settings2 className="h-4 w-4" /> Editar nombre, tipo, ubicación y textos
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <Link href={`/admin/s/custom/${custom.item.id}`} className="btn-ghost">
+              <Settings2 className="h-4 w-4" /> Editar nombre, tipo, ubicación y textos
+            </Link>
+            <Link href="/admin/menu" className="btn-ghost">
+              <ListOrdered className="h-4 w-4" /> Ordenar en el menú
+            </Link>
+          </div>
         </section>
       )}
 
@@ -129,6 +171,10 @@ export default async function AdminSectionPage({
           </span>
           <span className="font-semibold text-accent-light">Configurar →</span>
         </Link>
+      )}
+
+      {catCapable && (
+        <CategorySettings sectionKey={key} site={site.slug} categories={catList} options={text?.options ?? {}} />
       )}
 
       {section && (
@@ -152,34 +198,36 @@ export default async function AdminSectionPage({
                   : [itemCategories(it).join(", "), it.subtitle, it.price].filter(Boolean).join(" · ") || excerpt(it.content, 90);
                 return (
                   <li key={it.id} className={cn("flex items-center gap-3 p-3 sm:p-4", !it.published && "opacity-60")}>
-                    <div className="flex flex-col">
-                      <form action={moveItemAction}>
-                        <input type="hidden" name="id" value={it.id} />
-                        <input type="hidden" name="section" value={key} />
-                        <input type="hidden" name="dir" value="up" />
-                        <button
-                          type="submit"
-                          disabled={i === 0}
-                          className="rounded p-1 text-zinc-400 hover:bg-white/10 hover:text-white disabled:opacity-20"
-                          aria-label="Subir"
-                        >
-                          <ArrowUp className="h-4 w-4" />
-                        </button>
-                      </form>
-                      <form action={moveItemAction}>
-                        <input type="hidden" name="id" value={it.id} />
-                        <input type="hidden" name="section" value={key} />
-                        <input type="hidden" name="dir" value="down" />
-                        <button
-                          type="submit"
-                          disabled={i === list.length - 1}
-                          className="rounded p-1 text-zinc-400 hover:bg-white/10 hover:text-white disabled:opacity-20"
-                          aria-label="Bajar"
-                        >
-                          <ArrowDown className="h-4 w-4" />
-                        </button>
-                      </form>
-                    </div>
+                    {canReorder && (
+                      <div className="flex flex-col">
+                        <form action={moveItemAction}>
+                          <input type="hidden" name="id" value={it.id} />
+                          <input type="hidden" name="section" value={key} />
+                          <input type="hidden" name="dir" value="up" />
+                          <button
+                            type="submit"
+                            disabled={i === 0}
+                            className="rounded p-1 text-zinc-400 hover:bg-white/10 hover:text-white disabled:opacity-20"
+                            aria-label="Subir"
+                          >
+                            <ArrowUp className="h-4 w-4" />
+                          </button>
+                        </form>
+                        <form action={moveItemAction}>
+                          <input type="hidden" name="id" value={it.id} />
+                          <input type="hidden" name="section" value={key} />
+                          <input type="hidden" name="dir" value="down" />
+                          <button
+                            type="submit"
+                            disabled={i === list.length - 1}
+                            className="rounded p-1 text-zinc-400 hover:bg-white/10 hover:text-white disabled:opacity-20"
+                            aria-label="Bajar"
+                          >
+                            <ArrowDown className="h-4 w-4" />
+                          </button>
+                        </form>
+                      </div>
+                    )}
                     <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-white/10 bg-zinc-950">
                       {thumb ? (
                         // eslint-disable-next-line @next/next/no-img-element
@@ -285,48 +333,18 @@ export default async function AdminSectionPage({
 
       {isCustomList && list.length > 0 && (
         <p className="text-sm text-zinc-500">
-          El orden de esta lista es el orden en que aparecen las páginas dentro de su sección del menú.
+          {site.isMain ? (
+            <>
+              Para cambiar el orden en que aparecen en el menú (junto con las páginas predeterminadas) usa{" "}
+              <Link href="/admin/menu" className="font-semibold text-accent-light hover:underline">
+                Menú y orden
+              </Link>
+              .
+            </>
+          ) : (
+            "El orden de esta lista es el orden en que aparecen las páginas en el menú."
+          )}
         </p>
-      )}
-
-      {staticDef && !isCustomList && (
-        <details className="card group p-6" open={!section}>
-          <summary className="flex items-center justify-between">
-            <span>
-              <span className="block font-display text-lg font-bold tracking-wide text-white uppercase">Textos de la página</span>
-              <span className="text-sm text-zinc-500">
-                Nombre en el menú, título, introducción, imagen de cabecera y visibilidad
-              </span>
-            </span>
-            <Pencil className="h-4 w-4 text-zinc-500" />
-          </summary>
-          <form action={savePageAction} className="mt-6 space-y-5">
-            <input type="hidden" name="key" value={key} />
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label className="label">Nombre en el menú</label>
-                <input name="navLabel" defaultValue={text.navLabel} className="input" />
-              </div>
-              <div>
-                <label className="label">Título de la página</label>
-                <input name="title" defaultValue={text.title} className="input" />
-              </div>
-            </div>
-            <div>
-              <label className="label">Introducción</label>
-              <textarea name="intro" rows={4} defaultValue={text.intro} className="input" />
-            </div>
-            <div>
-              <label className="label">Imagen de cabecera</label>
-              <MediaInput name="imageUrl" defaultValue={text.imageUrl} accept="image/*" />
-            </div>
-            <label className="flex items-center gap-2 text-sm text-zinc-200">
-              <input type="checkbox" name="visible" defaultChecked={text.visible} className="h-4 w-4 accent-[var(--accent)]" />
-              Página visible en el sitio y en el menú
-            </label>
-            <SubmitButton>Guardar textos</SubmitButton>
-          </form>
-        </details>
       )}
     </div>
   );
