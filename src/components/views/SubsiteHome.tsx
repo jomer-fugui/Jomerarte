@@ -1,43 +1,50 @@
 import Link from "next/link";
 import { ArrowRight, Plus } from "lucide-react";
-import { isAdmin } from "@/lib/auth";
-import { getCustomSections, getFeatured, getItems, getPageTexts, getSettings, type CustomSection, type Item } from "@/lib/data";
+import {
+  cachedCustomSections,
+  cachedFeatured,
+  cachedItems,
+  cachedPageTexts,
+  cachedSettings,
+  type CustomSection,
+  type Item,
+} from "@/lib/data";
 import { excerpt } from "@/lib/format";
 import type { SectionDef } from "@/lib/sections";
 import { Gallery } from "../client";
 import { JsonLd } from "../JsonLd";
 import { absUrl, hubPageNodes, jsonLdGraph, listPageNodes } from "@/lib/seo";
-import { getSeoContext } from "@/lib/seo-server";
+import { cachedSeoContext } from "@/lib/seo-server";
 import { LinkButtons } from "../LinkButtons";
 import { SiteLogo } from "../Logo";
 import { Icon } from "../icons";
 import { MediaPlayer } from "../media";
-import { AdminFab, ContactButton, ItemImage, PlatformBadge, RichText, SectionHeading, SmartLink } from "../ui";
+import { ContactButton, ItemImage, PlatformBadge, RichText, SectionHeading, SmartLink } from "../ui";
+import { AdminTools } from "../AdminTools";
 import { SectionBody, itemPath } from "./SectionView";
 
 /** Portada de un subdominio: un sitio independiente con su propio nombre, logo, portada y páginas. */
-export async function SubsiteHome({ category, query }: { category?: string; query?: string } = {}) {
-  const [settings, pages, customs, admin] = await Promise.all([
-    getSettings(),
-    getPageTexts(),
-    getCustomSections(),
-    isAdmin(),
+export async function SubsiteHome({ siteSlug }: { siteSlug: string }) {
+  const [settings, pages, customs] = await Promise.all([
+    cachedSettings(siteSlug),
+    cachedPageTexts(siteSlug),
+    cachedCustomSections(siteSlug),
   ]);
   const visible = customs.filter((c) => c.visible);
   const homeId = Number(settings.homePage) || 0;
   const home = visible.find((c) => c.item.id === homeId) ?? null;
-  const homeItems: Item[] = home?.def ? await getItems(home.def.key) : [];
+  const homeItems: Item[] = home?.def ? await cachedItems(siteSlug, home.def.key, {}) : [];
   const others = visible.filter((c) => c.key !== home?.key);
   const label = (c: CustomSection) => pages[c.key]?.navLabel || c.item.title || c.item.slug;
   const defs = new Map<string, SectionDef>();
   for (const c of visible) if (c.def) defs.set(c.key, c.def);
   // Máximo 8 destacados, elegidos al azar en cada visita
-  const featured = await getFeatured(8, [...defs.keys()]);
+  const featured = await cachedFeatured(siteSlug, 8, [...defs.keys()]);
   const featuredCards = featured.flatMap((it) => {
     const sec = defs.get(it.section);
     return sec ? [{ it, sec }] : [];
   });
-  const seo = await getSeoContext();
+  const seo = await cachedSeoContext(siteSlug);
   const homeUrl = `${seo.base}/`;
   const homeDescription = settings.seoDescription || settings.heroText || settings.tagline || undefined;
   const ld = jsonLdGraph(
@@ -108,7 +115,7 @@ export async function SubsiteHome({ category, query }: { category?: string; quer
           {home.item.subtitle && <RichText text={home.item.subtitle} className="mt-3 max-w-3xl text-zinc-400" />}
           <div className="mt-8">
             {home.def ? (
-              <SectionBody section={home.def} items={homeItems} settings={settings} admin={admin} category={category} query={query} />
+              <SectionBody section={home.def} items={homeItems} settings={settings} admin={false} />
             ) : (
               <div className="space-y-10">
                 <RichText text={home.item.content} className="max-w-3xl text-lg text-zinc-300" />
@@ -162,11 +169,6 @@ export async function SubsiteHome({ category, query }: { category?: string; quer
           <div className="card grid place-items-center gap-3 px-6 py-16 text-center">
             <p className="font-display text-2xl font-bold text-white uppercase">Próximamente</p>
             <p className="max-w-md text-zinc-400">Este sitio todavía no tiene páginas publicadas. ¡Vuelve pronto!</p>
-            {admin && (
-              <Link href="/admin/s/custom/nuevo" className="btn-primary mt-2">
-                <Plus className="h-4 w-4" /> Crear la primera página
-              </Link>
-            )}
           </div>
         </section>
       )}
@@ -225,7 +227,7 @@ export async function SubsiteHome({ category, query }: { category?: string; quer
         </section>
       )}
 
-      {admin && <AdminFab href="/admin/ajustes" label="Editar portada" />}
+      <AdminTools href="/admin/ajustes" label="Editar portada" />
     </>
   );
 }

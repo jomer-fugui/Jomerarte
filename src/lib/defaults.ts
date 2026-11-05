@@ -55,7 +55,9 @@ export const DEFAULT_SETTINGS = {
   /* Google e inteligencia artificial */
   seoTitle: "",
   seoDescription: "",
-  aiPolicy: "all",
+  // Los robots que solo entrenan modelos (GPTBot, CCBot, Bytespider…) recorren todo el sitio y no
+  // traen visitas: por defecto quedan bloqueados. Los asistentes que buscan y citan, permitidos.
+  aiPolicy: "no-training",
   googleVerification: "",
   bingVerification: "",
 };

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { refreshSite, refreshSites } from "@/lib/revalidate";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { and, asc, desc, eq } from "drizzle-orm";
@@ -53,7 +54,7 @@ function str(fd: FormData, key: string, max = 20000): string {
 }
 
 function refresh() {
-  revalidatePath("/", "layout");
+  refreshSite();
 }
 
 function parseGallery(fd: FormData): string[] {
@@ -186,7 +187,7 @@ export async function createSiteAction(_prev: FormState, formData: FormData): Pr
   }
   // Queda seleccionado para editarlo enseguida
   (await cookies()).set(SITE_COOKIE, slug, SITE_COOKIE_OPTIONS);
-  refresh();
+  refreshSites();
   redirect("/admin?ok=site");
 }
 
@@ -198,7 +199,7 @@ export async function deleteSiteAction(formData: FormData) {
     const jar = await cookies();
     if (jar.get(SITE_COOKIE)?.value === slug) jar.delete(SITE_COOKIE);
   }
-  refresh();
+  refreshSites();
   redirect("/admin/sitios?ok=deleted");
 }
 

@@ -1,4 +1,5 @@
 import { cache } from "react";
+import { unstable_cache } from "next/cache";
 import { and, asc, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import { db, isDatabaseConfigured } from "@/db";
 import { items, pages, settings } from "@/db/schema";
@@ -20,6 +21,7 @@ import {
 } from "./sections";
 import { ensureSeeded } from "./seed";
 import { getCurrentSite } from "./site";
+import { PAGE_REVALIDATE, TAG_CONTENT } from "./cache-tags";
 
 export type Item = typeof items.$inferSelect;
 
@@ -39,18 +41,21 @@ export type PageText = {
 /** Página creada desde el panel, con su tipo, ubicación y dirección ya calculados. */
 export type CustomSection = CustomPageInfo & { item: Item; visible: boolean };
 
-async function currentSlug(): Promise<string> {
-  return (await getCurrentSite()).slug;
-}
+/* ════════════════════════════════════════════════════════════════════════════
+ * LECTURAS
+ *
+ * Cada lectura recibe el SITIO como parámetro ("" = principal). Así el panel puede pedir los datos
+ * frescos de cada sitio y el sitio público puede guardarlos en caché sin depender de cookies ni
+ * de cabeceras HTTP: eso es lo que permite que las páginas se sirvan desde la caché.
+ * ══════════════════════════════════════════════════════════════════════════════ */
 
-/** Ajustes del sitio actual: el principal o el subdominio que se está viendo/editando. */
-export const getSettings = cache(async (): Promise<Settings> => {
-  const site = await getCurrentSite();
-  const out: Settings = site.isMain ? { ...DEFAULT_SETTINGS } : subsiteDefaults(site.slug);
+/** Ajustes del sitio: los guardados en el panel sobre los valores por defecto. */
+const loadSettings = cache(async (slug: string): Promise<Settings> => {
+  const out: Settings = slug ? subsiteDefaults(slug) : { ...DEFAULT_SETTINGS };
   if (!isDatabaseConfigured()) return out;
   try {
     await ensureSeeded();
-    const rows = await db.select().from(settings).where(eq(settings.site, site.slug));
+    const rows = await db.select().from(settings).where(eq(settings.site, slug));
     for (const row of rows) {
       if (Object.prototype.hasOwnProperty.call(DEFAULT_SETTINGS, row.key)) {
         (out as Record<string, string>)[row.key] = row.value;
@@ -62,13 +67,15 @@ export const getSettings = cache(async (): Promise<Settings> => {
   return out;
 });
 
-/** Páginas personalizadas del sitio actual (publicadas y ocultas), en el orden del panel. */
-export const getCustomSections = cache(async (): Promise<CustomSection[]> => {
+/** Ajustes frescos (panel): siempre los recién guardados. */
+export const freshSettings = loadSettings;
+
+/** Páginas personalizadas del sitio (publicadas y ocultas), en el orden del panel. */
+const loadCustomSections = cache(async (slug: string): Promise<CustomSection[]> => {
   if (!isDatabaseConfigured()) return [];
   try {
-    const site = await getCurrentSite();
-    const rows = await getItems("custom", { all: true, site: site.slug });
-    return rows.map((item) => ({ ...describeCustomPage(item, site.isMain), item, visible: item.published }));
+    const rows = await loadItems(slug, "custom", { all: true });
+    return rows.map((item) => ({ ...describeCustomPage(item, slug === ""), item, visible: item.published }));
   } catch (err) {
     console.error("[custom pages]", err instanceof Error ? err.message : err);
     return [];
@@ -76,7 +83,7 @@ export const getCustomSections = cache(async (): Promise<CustomSection[]> => {
 });
 
 /** Textos y opciones de las páginas: las predeterminadas del sitio principal y las creadas desde el panel. */
-export const getPageTexts = cache(async (): Promise<Record<string, PageText>> => {
+const loadPageTexts = cache(async (slug: string): Promise<Record<string, PageText>> => {
   const map: Record<string, PageText> = {};
   for (const def of ALL_PAGE_DEFS) {
     map[def.key] = {
@@ -92,8 +99,7 @@ export const getPageTexts = cache(async (): Promise<Record<string, PageText>> =>
     };
   }
   if (!isDatabaseConfigured()) return map;
-  const site = await getCurrentSite();
-  if (site.isMain) {
+  if (slug === "") {
     try {
       await ensureSeeded();
       const rows = await db.select().from(pages);
@@ -119,7 +125,7 @@ export const getPageTexts = cache(async (): Promise<Record<string, PageText>> =>
       console.error("[pages]", err instanceof Error ? err.message : err);
     }
   }
-  for (const c of await getCustomSections()) {
+  for (const c of await loadCustomSections(slug)) {
     const name = c.item.title || c.item.slug;
     map[c.key] = {
       key: c.key,
@@ -137,7 +143,7 @@ export const getPageTexts = cache(async (): Promise<Record<string, PageText>> =>
 });
 
 /** Orden y nombres del menú del sitio principal. */
-export const getMenuConfig = cache(async (): Promise<MenuConfig> => {
+const loadMenuConfig = cache(async (): Promise<MenuConfig> => {
   if (!isDatabaseConfigured()) return {};
   try {
     await ensureSeeded();
@@ -152,72 +158,143 @@ export const getMenuConfig = cache(async (): Promise<MenuConfig> => {
   }
 });
 
-/** Menú del sitio actual con sus secciones y páginas en el orden elegido. */
-export const getMenuModel = cache(async (): Promise<MenuModel> => {
-  const [site, texts, customs, config] = await Promise.all([
-    getCurrentSite(),
-    getPageTexts(),
-    getCustomSections(),
-    getMenuConfig(),
+/** Menú del sitio con sus secciones y páginas en el orden elegido. */
+const loadMenuModel = cache(async (slug: string): Promise<MenuModel> => {
+  const [texts, customs, config] = await Promise.all([
+    loadPageTexts(slug),
+    loadCustomSections(slug),
+    loadMenuConfig(),
   ]);
-  return buildMenuModel(texts, customs, config, site.isMain);
+  return buildMenuModel(texts, customs, config, slug === "");
 });
+
+/** Elementos de una sección del sitio. */
+const loadItems = cache(
+  async (slug: string, section: string, opts: { all?: boolean; limit?: number } = {}): Promise<Item[]> => {
+    if (!isDatabaseConfigured()) return [];
+    await ensureSeeded();
+    const conds = [eq(items.site, slug), eq(items.section, section)];
+    if (!opts.all) conds.push(eq(items.published, true));
+    const q = db
+      .select()
+      .from(items)
+      .where(and(...conds))
+      .orderBy(asc(items.sortOrder), desc(items.createdAt))
+      .$dynamic();
+    return opts.limit ? q.limit(opts.limit) : q;
+  },
+);
+
+/** Destacados al azar entre las secciones indicadas. */
+const loadFeatured = cache(async (slug: string, limit: number, sections: string[]): Promise<Item[]> => {
+  if (!isDatabaseConfigured() || sections.length === 0) return [];
+  await ensureSeeded();
+  return db
+    .select()
+    .from(items)
+    .where(
+      and(
+        eq(items.site, slug),
+        eq(items.featured, true),
+        eq(items.published, true),
+        ne(items.section, "custom"),
+        inArray(items.section, sections),
+      ),
+    )
+    .orderBy(sql`random()`)
+    .limit(limit);
+});
+
+/** Todo el contenido publicado del sitio (lo usa el buscador). */
+const loadAllPublished = cache(async (slug: string): Promise<Item[]> => {
+  if (!isDatabaseConfigured()) return [];
+  await ensureSeeded();
+  return db
+    .select()
+    .from(items)
+    .where(and(eq(items.site, slug), eq(items.published, true)))
+    .orderBy(asc(items.sortOrder))
+    .limit(3000);
+});
+
+/** Un elemento al azar de una sección (la frase del día, la pregunta del día…). */
+const loadRandomItem = cache(async (slug: string, section: string): Promise<Item | undefined> => {
+  if (!isDatabaseConfigured()) return undefined;
+  await ensureSeeded();
+  const rows = await db
+    .select()
+    .from(items)
+    .where(and(eq(items.site, slug), eq(items.section, section), eq(items.published, true)))
+    .orderBy(sql`random()`)
+    .limit(1);
+  return rows[0];
+});
+
+/* ════════════════════════════════════════════════════════════════════════════
+ * SITIO PÚBLICO — con caché (se refresca al guardar en el panel)
+ * ══════════════════════════════════════════════════════════════════════════════ */
+
+const cacheOptions = { revalidate: PAGE_REVALIDATE, tags: [TAG_CONTENT] };
+
+export const cachedSettings = unstable_cache(loadSettings, ["ajustes"], cacheOptions);
+export const cachedCustomSections = unstable_cache(loadCustomSections, ["paginas-nuevas"], cacheOptions);
+export const cachedPageTexts = unstable_cache(loadPageTexts, ["textos"], cacheOptions);
+export const cachedMenuModel = unstable_cache(loadMenuModel, ["menu"], cacheOptions);
+export const cachedItems = unstable_cache(loadItems, ["elementos"], cacheOptions);
+export const cachedFeatured = unstable_cache(loadFeatured, ["destacados"], { ...cacheOptions, revalidate: 60 });
+export const cachedRandomItem = unstable_cache(loadRandomItem, ["al-azar"], { ...cacheOptions, revalidate: 60 });
+export const cachedAllPublished = unstable_cache(loadAllPublished, ["todo-publicado"], {
+  ...cacheOptions,
+  revalidate: 120,
+});
+
+/* ════════════════════════════════════════════════════════════════════════════
+ * PANEL — sin caché (siempre los datos recién guardados), para el sitio que se está editando
+ * ══════════════════════════════════════════════════════════════════════════════ */
+
+async function currentSlug(): Promise<string> {
+  return (await getCurrentSite()).slug;
+}
+
+export const getSettings = cache(async (): Promise<Settings> => loadSettings(await currentSlug()));
+
+export const getCustomSections = cache(async (): Promise<CustomSection[]> => loadCustomSections(await currentSlug()));
+
+export const getPageTexts = cache(async (): Promise<Record<string, PageText>> => loadPageTexts(await currentSlug()));
+
+export const getMenuConfig = loadMenuConfig;
+
+export const getMenuModel = cache(async (): Promise<MenuModel> => loadMenuModel(await currentSlug()));
 
 /** Elementos de una sección del sitio actual (o del sitio indicado). */
 export async function getItems(
   section: string,
   opts: { all?: boolean; limit?: number; site?: string } = {},
 ): Promise<Item[]> {
-  if (!isDatabaseConfigured()) return [];
-  await ensureSeeded();
-  const site = opts.site ?? (await currentSlug());
-  const conds = [eq(items.site, site), eq(items.section, section)];
-  if (!opts.all) conds.push(eq(items.published, true));
-  const q = db
-    .select()
-    .from(items)
-    .where(and(...conds))
-    .orderBy(asc(items.sortOrder), desc(items.createdAt))
-    .$dynamic();
-  return opts.limit ? q.limit(opts.limit) : q;
+  const slug = opts.site ?? (await currentSlug());
+  return loadItems(slug, section, opts);
 }
 
-export async function getItem(id: number): Promise<Item | undefined> {
+/** Un elemento por su número (del sitio indicado, o del sitio actual). */
+export async function getItem(id: number, site?: string): Promise<Item | undefined> {
   if (!Number.isInteger(id) || id <= 0 || !isDatabaseConfigured()) return undefined;
   await ensureSeeded();
-  const rows = await db.select().from(items).where(eq(items.id, id)).limit(1);
-  return rows[0];
-}
-
-/**
- * Destacados al azar: en cada visita se eligen otros (máximo `limit`).
- * `sections` limita la búsqueda a las secciones visibles del sitio.
- */
-export async function getFeatured(limit = 8, sections?: string[]): Promise<Item[]> {
-  if (!isDatabaseConfigured() || (sections && sections.length === 0)) return [];
-  await ensureSeeded();
-  const site = await currentSlug();
-  const conds = [eq(items.site, site), eq(items.featured, true), eq(items.published, true), ne(items.section, "custom")];
-  if (sections) conds.push(inArray(items.section, sections));
-  return db
-    .select()
-    .from(items)
-    .where(and(...conds))
-    .orderBy(sql`random()`)
-    .limit(limit);
-}
-
-export async function getRandomItem(section: string): Promise<Item | undefined> {
-  if (!isDatabaseConfigured()) return undefined;
-  await ensureSeeded();
-  const site = await currentSlug();
+  const slug = site ?? (await currentSlug());
   const rows = await db
     .select()
     .from(items)
-    .where(and(eq(items.site, site), eq(items.section, section), eq(items.published, true)))
-    .orderBy(sql`random()`)
+    .where(and(eq(items.id, id), eq(items.site, slug)))
     .limit(1);
   return rows[0];
+}
+
+/** Destacados al azar del sitio actual (panel y vistas previas). */
+export async function getFeatured(limit = 8, sections?: string[]): Promise<Item[]> {
+  return loadFeatured(await currentSlug(), limit, sections ?? []);
+}
+
+export async function getRandomItem(section: string): Promise<Item | undefined> {
+  return loadRandomItem(await currentSlug(), section);
 }
 
 export type CustomResolved =

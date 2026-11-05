@@ -3,12 +3,16 @@ import Form from "next/form";
 import Link from "next/link";
 import { ArrowRight, Search, Tag } from "lucide-react";
 import { searchSite } from "@/lib/search";
+import { siteFromSlug } from "@/lib/site";
 import { Icon } from "@/components/icons";
 import { ItemImage } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
-type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
+type Props = {
+  params: Promise<{ site: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
 
 function queryOf(sp: Record<string, string | string[] | undefined>): string {
   const q = sp.q;
@@ -21,9 +25,10 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
 }
 
 /** Resultados de la lupa: busca por nombre o categoría en todas las páginas del sitio actual. */
-export default async function SearchPage({ searchParams }: Props) {
+export default async function SearchPage({ params, searchParams }: Props) {
   const q = queryOf(await searchParams);
-  const results = q ? await searchSite(q) : null;
+  const site = await siteFromSlug((await params).site);
+  const results = q ? await searchSite(site, q) : null;
 
   return (
     <>

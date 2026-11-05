@@ -122,18 +122,20 @@ export async function HubView({
   settings,
   admin,
   menu,
+  siteSlug,
 }: {
   hub: HubDef;
   pages: Record<string, PageText>;
   settings: Settings;
   admin: boolean;
   menu: MenuModel;
+  siteSlug: string;
 }) {
   const text = pages[hub.key];
   // Las páginas de la sección, en el mismo orden que en el menú
   const entries = groupEntries(menu, hub.group);
   const previews = await Promise.all(
-    entries.map((e) => (e.def ? getItems(e.def.key, { limit: 4 }) : Promise.resolve<Item[]>([]))),
+    entries.map((e) => (e.def ? getItems(e.def.key, { limit: 4, site: siteSlug }) : Promise.resolve<Item[]>([]))),
   );
   const tabs = buildTabs(menu, hub.key);
   const danger = hub.key === "truchadas";
@@ -237,6 +239,7 @@ export async function ItemDetailView({
   settings,
   admin,
   menu,
+  siteSlug,
 }: {
   section: SectionDef;
   item: Item;
@@ -244,9 +247,10 @@ export async function ItemDetailView({
   settings: Settings;
   admin: boolean;
   menu?: MenuModel;
+  siteSlug: string;
 }) {
   const text = textFor(section, pages);
-  const all = await getItems(section.key);
+  const all = await getItems(section.key, { site: siteSlug });
   const idx = all.findIndex((i) => i.id === item.id);
   const prev = idx > 0 ? all[idx - 1] : undefined;
   const next = idx >= 0 && idx < all.length - 1 ? all[idx + 1] : undefined;

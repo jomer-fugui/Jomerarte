@@ -1,21 +1,57 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
+import { subdomainCandidate } from "@/lib/hosts";
 
 /**
- * Proxy de Next.js.
+ * Proxy (el antiguo “middleware”) de Next.js.
  *
- * IMPORTANTE: este archivo REEMPLAZA a la versión antigua que redirigía frases.jomerarte.com y
- * cielinfier.jomerarte.com a secciones del sitio principal (/Frases, /Cielinfier). Esa versión
- * provocaba errores 404 en esos subdominios. Ahora cada subdominio es un sitio independiente y
- * se resuelve dentro de la aplicación, así que aquí ya NO se reescribe ninguna dirección.
+ * Hace dos cosas:
  *
- * Lo único que hace es pedir a los buscadores que no indexen el panel de administración.
+ *  1. En el panel (`/admin`) pide a los buscadores que no lo indexen.
+ *  2. En el sitio público traduce la dirección que ve el visitante a una dirección INTERNA que
+ *     incluye el sitio:  jomerarte.com/Servicios  →  /h/_/Servicios
+ *                        juegos.jomerarte.com/     →  /h/juegos
+ *
+ *     Así cada subdominio es su propia página a ojos de la caché (la caché guarda por dirección),
+ *     y las páginas públicas ya no necesitan leer cookies ni cabeceras para saber qué sitio son.
+ *     El visitante nunca ve la dirección interna: la reescritura es transparente.
+ *
+ * La parte de IndexNow (`/jomer-<clave>.txt`) se deja pasar tal cual, porque la maneja
+ * el `rewrites()` de next.config.ts.
  */
-export function proxy() {
-  const response = NextResponse.next();
-  response.headers.set("X-Robots-Tag", "noindex, nofollow");
-  return response;
+
+/** Archivos estáticos servidos por la carpeta `public/` (no pasan por la reescritura). */
+const STATIC_FILE = /^\/(images\/|icon\.svg$|favicon\.ico$|BingSiteAuth\.xml$)/;
+/** Archivo de verificación de IndexNow (rewrite de next.config.ts). */
+const INDEXNOW_FILE = /^\/jomer-[a-f0-9]{32}\.txt$/;
+
+export function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  if (pathname.startsWith("/admin")) {
+    const response = NextResponse.next();
+    response.headers.set("X-Robots-Tag", "noindex, nofollow");
+    return response;
+  }
+
+  // Las direcciones internas (/h/...) no se muestran ni se indexan: solo existen por reescritura.
+  if (pathname === "/h" || pathname.startsWith("/h/")) {
+    return new NextResponse("No encontrado", { status: 404, headers: { "x-robots-tag": "noindex, nofollow" } });
+  }
+
+  if (pathname.startsWith("/api") || STATIC_FILE.test(pathname) || INDEXNOW_FILE.test(pathname)) {
+    return NextResponse.next();
+  }
+
+  const host = (request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? "")
+    .split(",")[0]
+    .trim();
+  const slug = subdomainCandidate(host) ?? "_";
+
+  const url = request.nextUrl.clone();
+  url.pathname = `/h/${slug}${pathname === "/" ? "" : pathname}`;
+  return NextResponse.rewrite(url);
 }
 
 export const config = {
-  matcher: ["/admin/:path*"],
+  matcher: ["/((?!_next/static|_next/image).*)"],
 };

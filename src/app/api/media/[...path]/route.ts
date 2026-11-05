@@ -17,15 +17,24 @@ export async function GET(req: Request, ctx: { params: Promise<{ path: string[] 
     .from(media)
     .where(eq(media.id, id))
     .limit(1);
-  if (!meta) return new Response("Not found", { status: 404 });
+  if (!meta) return new Response("Not found", { status: 404, headers: { "Cache-Control": "public, s-maxage=600" } });
 
-  // Archivos guardados en Vercel Blob: redirigir a su dirección pública
-  if (meta.url) return Response.redirect(meta.url, 307);
+  // Archivos guardados en Vercel Blob: redirigir a su dirección pública (y que el CDN la recuerde)
+  if (meta.url) {
+    return new Response(null, {
+      status: 307,
+      headers: {
+        Location: meta.url,
+        "Cache-Control": "public, s-maxage=31536000, max-age=86400, immutable",
+      },
+    });
+  }
 
   const headers: Record<string, string> = {
     "Content-Type": meta.mimeType,
     "Accept-Ranges": "bytes",
-    "Cache-Control": "public, max-age=31536000, immutable",
+    // s-maxage: que lo guarde el CDN de Vercel y no vuelva a despertar la función en cada visita
+    "Cache-Control": "public, s-maxage=31536000, max-age=31536000, stale-while-revalidate=86400, immutable",
     "X-Content-Type-Options": "nosniff",
     "Content-Disposition": `inline; filename="${meta.filename}"`,
   };
@@ -65,6 +74,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ path: string[] 
   }
 
   const [row] = await db.select({ data: media.data }).from(media).where(eq(media.id, id)).limit(1);
-  if (!row?.data) return new Response("Not found", { status: 404 });
+  if (!row?.data)
+    return new Response("Not found", { status: 404, headers: { "Cache-Control": "public, s-maxage=600" } });
   return new Response(new Uint8Array(row.data), { headers: { ...headers, "Content-Length": String(row.data.length) } });
 }
