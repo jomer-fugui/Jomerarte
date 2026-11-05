@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { ExternalLink, Globe, Image as ImageIcon, LayoutDashboard, LogOut, Settings, Tag } from "lucide-react";
+import { ExternalLink, Globe, Image as ImageIcon, LayoutDashboard, ListOrdered, LogOut, Search, Settings, Tag } from "lucide-react";
 import { requireAdmin } from "@/lib/auth";
 import { getSettings } from "@/lib/data";
 import { siteLabel } from "@/lib/hosts";
@@ -29,6 +29,14 @@ export default async function PanelLayout({ children }: { children: ReactNode })
             <Link href="/admin" className="navlink inline-flex items-center gap-1.5" title="Contenido">
               <LayoutDashboard className="h-4 w-4" />
               <span className="hidden md:inline">Contenido</span>
+            </Link>
+            <Link href="/admin/menu" className="navlink hidden items-center gap-1.5 sm:inline-flex" title="Menú y orden">
+              <ListOrdered className="h-4 w-4" />
+              <span className="hidden md:inline">Menú</span>
+            </Link>
+            <Link href="/admin/seo" className="navlink hidden items-center gap-1.5 sm:inline-flex" title="Google e IA">
+              <Search className="h-4 w-4" />
+              <span className="hidden lg:inline">Google e IA</span>
             </Link>
             <Link href="/admin/ajustes" className="navlink inline-flex items-center gap-1.5" title="Ajustes y logo">
               <Settings className="h-4 w-4" />

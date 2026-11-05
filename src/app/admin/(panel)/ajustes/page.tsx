@@ -5,6 +5,7 @@ import { SETTINGS_GROUPS, type SettingField } from "@/lib/defaults";
 import { siteLabel } from "@/lib/hosts";
 import { getCurrentSite } from "@/lib/site";
 import { MediaInput } from "@/components/admin/MediaInput";
+import { HoursEditor } from "@/components/admin/HoursEditor";
 import { SubmitButton } from "@/components/admin/SubmitButton";
 import { changePasswordAction, saveSettingsAction } from "../../actions";
 
@@ -35,6 +36,18 @@ function FieldInput({ field, value, pages }: { field: SettingField; value: strin
           ))}
         </select>
       );
+    case "select":
+      return (
+        <select name={field.key} defaultValue={value} className="input">
+          {(field.options ?? []).map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      );
+    case "hours":
+      return <HoursEditor name={field.key} defaultValue={value} />;
     case "color":
       return (
         <input
@@ -102,7 +115,7 @@ export default async function SettingsPage({
       <form action={saveSettingsAction} className="space-y-6">
         <input type="hidden" name="__site" value={site.slug} />
         {groups.map((g) => (
-          <section key={g.title} className="card space-y-5 p-6">
+          <section key={g.title} id={g.id} className="card scroll-mt-24 space-y-5 p-6">
             <div>
               <h2 className="font-display text-xl font-bold tracking-wide text-white uppercase">{g.title}</h2>
               {g.description && <p className="text-sm text-zinc-500">{g.description}</p>}
@@ -111,7 +124,7 @@ export default async function SettingsPage({
               {g.fields.map((field) => (
                 <div
                   key={field.key}
-                  className={field.type === "textarea" || field.type === "image" || field.type === "page" ? "md:col-span-2" : ""}
+                  className={field.type === "textarea" || field.type === "image" || field.type === "page" || field.type === "hours" ? "md:col-span-2" : ""}
                 >
                   <label className="label">{field.label}</label>
                   <FieldInput field={field} value={settings[field.key]} pages={pages} />
