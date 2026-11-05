@@ -5,23 +5,28 @@ import { DbMissing } from "@/components/DbMissing";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { PreviewBanner } from "@/components/PreviewBanner";
-import { getCustomSections, getPageTexts, getSettings } from "@/lib/data";
+import { getCustomSections, getMenuModel, getPageTexts, getSettings } from "@/lib/data";
 import { waLink } from "@/lib/format";
 import { buildNav, buildSubsiteNav } from "@/lib/nav";
 import { getCurrentSite } from "@/lib/site";
+import { jsonLdGraph, siteGraph } from "@/lib/seo";
+import { getSeoContext } from "@/lib/seo-server";
+import { JsonLd } from "@/components/JsonLd";
 
 export default async function SiteLayout({ children }: { children: ReactNode }) {
   if (!isDatabaseConfigured()) return <DbMissing />;
 
-  const [site, settings, pages, customs] = await Promise.all([
+  const [site, settings, pages, customs, menu, seo] = await Promise.all([
     getCurrentSite(),
     getSettings(),
     getPageTexts(),
     getCustomSections(),
+    getMenuModel(),
+    getSeoContext(),
   ]);
   const visible = customs.filter((c) => c.visible);
   // Cada sitio tiene su propio menú: el principal con sus secciones fijas, los subdominios con sus páginas
-  const nav = site.isMain ? buildNav(pages, visible) : buildSubsiteNav(visible, pages);
+  const nav = site.isMain ? buildNav(menu, pages) : buildSubsiteNav(visible, pages);
   const donateHref = site.isMain
     ? pages.donacion?.visible !== false
       ? "/Donacion"
@@ -31,6 +36,7 @@ export default async function SiteLayout({ children }: { children: ReactNode }) 
 
   return (
     <>
+      <JsonLd data={jsonLdGraph(siteGraph(seo))} />
       {site.via === "preview" && <PreviewBanner slug={site.slug} name={settings.siteName} />}
       <Header settings={settings} nav={nav} donateHref={donateHref} />
       <main className="min-h-[60vh]">{children}</main>
