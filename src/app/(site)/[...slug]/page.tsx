@@ -5,15 +5,33 @@ import {
   getCustomSections,
   getItem,
   getItems,
+  getMenuModel,
   getPageTexts,
   getSettings,
   resolveCustomPath,
   type CustomSection,
+  type PageText,
 } from "@/lib/data";
 import { excerpt, foldText } from "@/lib/format";
-import { buildSubsiteTabs, buildTabs } from "@/lib/nav";
-import { resolvePath, type GroupKey } from "@/lib/sections";
+import { buildSubsiteTabs, buildTabs, groupEntries, menuCrumbs, menuEyebrow, withPageText } from "@/lib/nav";
+import { resolvePath } from "@/lib/sections";
+import {
+  absUrl,
+  breadcrumbNode,
+  detailPageNodes,
+  detailPath,
+  hubPageNodes,
+  itemDescription,
+  itemImage,
+  jsonLdGraph,
+  listPageNodes,
+  pageMetadata,
+  twitterHandle,
+  webPageNode,
+} from "@/lib/seo";
+import { getDefaultSeo, getSeoContext } from "@/lib/seo-server";
 import { getCurrentSite, type SiteContext } from "@/lib/site";
+import { JsonLd } from "@/components/JsonLd";
 import { CustomPageView, HubView, ItemDetailView, SectionPage, itemPath } from "@/components/views/PageViews";
 import { SubsiteHome } from "@/components/views/SubsiteHome";
 
@@ -23,6 +41,9 @@ type Props = {
   params: Promise<{ slug: string[] }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
+
+/** Tipos de publicación que se comparten como artículo (con fecha) */
+const ARTICLE_LAYOUTS = ["devlog", "story", "inventions", "poems", "songs", "characters"];
 
 function decode(s: string): string {
   try {
@@ -46,7 +67,7 @@ const LEGACY_PREFIX: Record<string, string> = { frases: "frases", cielinfier: "c
 function resolveRequest(slug: string[], site: SiteContext, customs: CustomSection[], admin: boolean) {
   const list = admin ? customs : customs.filter((c) => c.visible);
   let path = toPath(slug);
-  // Primero las páginas fijas (solo sitio principal); después las creadas desde el panel
+  // Primero las páginas predeterminadas (solo sitio principal); después las creadas desde el panel
   const fixed = site.isMain ? resolvePath(path) : null;
   let customMatch = fixed ? null : resolveCustomPath(path, list);
   let legacyHome = false;
@@ -62,53 +83,70 @@ function resolveRequest(slug: string[], site: SiteContext, customs: CustomSectio
   return { r: fixed ?? customMatch, customMatch, path, legacyHome };
 }
 
+/** Título, descripción, imagen y dirección canónica de cada página (Google, redes sociales e IA). */
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const [site, pages, customs, admin] = await Promise.all([getCurrentSite(), getPageTexts(), getCustomSections(), isAdmin()]);
+  const [site, pages, customs, admin, d] = await Promise.all([
+    getCurrentSite(),
+    getPageTexts(),
+    getCustomSections(),
+    isAdmin(),
+    getDefaultSeo(),
+  ]);
   const { r, legacyHome } = resolveRequest(slug, site, customs, admin);
-  if (legacyHome) return {};
-  if (!r) return { title: "Página no encontrada" };
+  const common = { siteName: d.settings.siteName, locale: d.locale, handle: twitterHandle(d.settings.twitter) };
+  if (legacyHome) return { alternates: { canonical: "/" } };
+  if (!r) return { title: "Página no encontrada", robots: { index: false, follow: true } };
 
   if (r.kind === "detail") {
     const item = await getItem(r.id);
-    if (item) {
-      return {
-        title: item.title || pages[r.section.key]?.title,
-        description: excerpt(item.subtitle || item.content, 160),
-        openGraph: item.imageUrl ? { images: [item.imageUrl] } : undefined,
-      };
-    }
-    return { title: pages[r.section.key]?.title };
+    const text = pages[r.section.key];
+    if (!item || item.section !== r.section.key) return { title: text?.title };
+    return pageMetadata({
+      ...common,
+      title: item.title || text?.title,
+      description: itemDescription(item) ?? text?.intro,
+      path: detailPath(r.section.path, item),
+      image: itemImage(d.base, item) ?? d.image,
+      article: ARTICLE_LAYOUTS.includes(r.section.layout)
+        ? { publishedTime: item.createdAt.toISOString(), modifiedTime: item.updatedAt.toISOString() }
+        : undefined,
+    });
   }
   if (r.kind === "custom-page") {
     const it = r.custom.item;
-    return {
+    return pageMetadata({
+      ...common,
       title: it.title,
-      description: excerpt(it.subtitle || it.content, 160),
-      openGraph: it.imageUrl ? { images: [it.imageUrl] } : undefined,
-    };
+      description: it.subtitle || excerpt(it.content, 200) || undefined,
+      path: r.canonical,
+      image: absUrl(d.base, it.imageUrl) ?? d.image,
+    });
   }
   const key = r.kind === "hub" ? r.hub.key : r.section.key;
   const t = pages[key];
-  return {
+  return pageMetadata({
+    ...common,
     title: t?.title,
-    description: excerpt(t?.intro ?? "", 160),
-    openGraph: t?.imageUrl ? { images: [t.imageUrl] } : undefined,
-  };
+    description: t?.intro || (t?.title ? `${t.title} — ${d.settings.siteName}` : undefined),
+    path: r.canonical,
+    image: absUrl(d.base, t?.imageUrl) ?? d.image,
+  });
 }
 
 export default async function CatchAllPage({ params, searchParams }: Props) {
   const [{ slug }, sp] = await Promise.all([params, searchParams]);
-  const [site, settings, pages, admin, customs] = await Promise.all([
+  const [site, settings, pages, admin, customs, menu, seo] = await Promise.all([
     getCurrentSite(),
     getSettings(),
     getPageTexts(),
     isAdmin(),
     getCustomSections(),
+    getMenuModel(),
+    getSeoContext(),
   ]);
   const category = typeof sp.cat === "string" ? sp.cat : undefined;
   const query = typeof sp.q === "string" ? sp.q : undefined;
-  const visibleCustoms = customs.filter((c) => c.visible);
   const { r, customMatch, path, legacyHome } = resolveRequest(slug, site, customs, admin);
 
   if (legacyHome) return <SubsiteHome category={category} query={query} />;
@@ -116,60 +154,121 @@ export default async function CatchAllPage({ params, searchParams }: Props) {
 
   if (r.kind !== "detail" && path !== r.canonical) redirect(r.canonical);
 
-  const tabsFor = (key: string, group: GroupKey) =>
-    site.isMain ? buildTabs(key, group, pages, visibleCustoms) : buildSubsiteTabs(key, customs, pages);
-  const eyebrow = !site.isMain && customMatch ? customMatch.custom.menuLabel || settings.siteName : undefined;
+  // Pestañas y texto superior según el menú (con el orden elegido en el panel)
+  const tabsFor = (key: string) => (site.isMain ? buildTabs(menu, key) : buildSubsiteTabs(key, customs, pages));
+  const eyebrowFor = (key: string) =>
+    !site.isMain && customMatch ? customMatch.custom.menuLabel || settings.siteName : menuEyebrow(menu, key, settings.siteName);
+  const url = (p: string) => `${seo.base}${p}`;
 
   if (r.kind === "hub") {
-    if (pages[r.hub.key]?.visible === false && !admin) notFound();
-    return <HubView hub={r.hub} pages={pages} settings={settings} admin={admin} customs={visibleCustoms} />;
-  }
-
-  if (r.kind === "custom-page") {
+    const text = pages[r.hub.key];
+    if (text?.visible === false && !admin) notFound();
+    const hub = { ...r.hub, icon: text?.icon ?? r.hub.icon };
+    const ld = jsonLdGraph([
+      breadcrumbNode(seo, [
+        { href: "/", label: "Inicio" },
+        { href: r.hub.path, label: text?.navLabel ?? r.hub.navLabel },
+      ]),
+      ...hubPageNodes(seo, {
+        url: url(r.hub.path),
+        name: text?.title ?? r.hub.title,
+        description: text?.intro,
+        image: absUrl(seo.base, text?.imageUrl),
+        entries: groupEntries(menu, r.hub.group).map((e) => ({ title: e.title, path: e.path, intro: e.intro })),
+      }),
+    ]);
     return (
-      <CustomPageView
-        custom={r.custom}
-        pages={pages}
-        tabs={tabsFor(r.custom.key, r.custom.group)}
-        admin={admin}
-        eyebrow={eyebrow}
-      />
+      <>
+        <JsonLd data={ld} />
+        <HubView hub={hub} pages={pages} settings={settings} admin={admin} menu={menu} />
+      </>
     );
   }
 
-  const section = r.section;
-  if (pages[section.key]?.visible === false && !admin) notFound();
-
-  if (r.kind === "detail") {
-    const item = await getItem(r.id);
-    if (!item || item.section !== section.key || item.site !== site.slug || (!item.published && !admin)) notFound();
-    const proper = itemPath(section.path, item);
-    if (path !== proper) redirect(proper);
-    return <ItemDetailView section={section} item={item} pages={pages} settings={settings} admin={admin} />;
+  if (r.kind === "custom-page") {
+    const it = r.custom.item;
+    const ld = jsonLdGraph([
+      breadcrumbNode(seo, [...menuCrumbs(menu, r.custom.key), { href: r.custom.path, label: it.title }]),
+      webPageNode(seo, {
+        url: url(r.custom.path),
+        name: it.title,
+        description: excerpt(it.subtitle || it.content, 300) || undefined,
+        image: absUrl(seo.base, it.imageUrl),
+        dateModified: it.updatedAt.toISOString(),
+      }),
+    ]);
+    return (
+      <>
+        <JsonLd data={ld} />
+        <CustomPageView custom={r.custom} tabs={tabsFor(r.custom.key)} admin={admin} eyebrow={eyebrowFor(r.custom.key)} menu={menu} />
+      </>
+    );
   }
 
-  const items = await getItems(section.key);
-  const text = pages[section.key] ?? {
+  // Las páginas predeterminadas usan lo cambiado en el panel: ícono, sección y orden de categorías
+  const section = customMatch ? r.section : withPageText(r.section, pages[r.section.key]);
+  if (pages[section.key]?.visible === false && !admin) notFound();
+  const text: PageText = pages[section.key] ?? {
     key: section.key,
     navLabel: section.navLabel,
     title: section.title,
     intro: section.intro,
     imageUrl: section.image ?? "",
     visible: true,
+    icon: section.icon,
+    group: section.group,
+    options: section.options ?? {},
   };
+
+  if (r.kind === "detail") {
+    const item = await getItem(r.id);
+    if (!item || item.section !== section.key || item.site !== site.slug || (!item.published && !admin)) notFound();
+    const proper = itemPath(section.path, item);
+    if (path !== proper) redirect(proper);
+    const ld = jsonLdGraph([
+      breadcrumbNode(seo, [
+        ...menuCrumbs(menu, section.key),
+        { href: section.path, label: text.navLabel },
+        { href: proper, label: item.title },
+      ]),
+      ...detailPageNodes(seo, section, item, text.title),
+    ]);
+    return (
+      <>
+        <JsonLd data={ld} />
+        <ItemDetailView section={section} item={item} pages={pages} settings={settings} admin={admin} menu={menu} />
+      </>
+    );
+  }
+
+  const items = await getItems(section.key);
+  const ld = jsonLdGraph([
+    breadcrumbNode(seo, [...menuCrumbs(menu, section.key), { href: section.path, label: text.navLabel }]),
+    ...listPageNodes(seo, {
+      section,
+      items,
+      url: url(section.path),
+      name: text.title,
+      description: text.intro,
+      image: absUrl(seo.base, text.imageUrl),
+    }),
+  ]);
   return (
-    <SectionPage
-      section={section}
-      text={text}
-      items={items}
-      settings={settings}
-      pages={pages}
-      tabs={tabsFor(section.key, section.group)}
-      admin={admin}
-      category={category}
-      query={query}
-      eyebrow={eyebrow}
-      extra={customMatch?.kind === "section" ? customMatch.custom.item : undefined}
-    />
+    <>
+      <JsonLd data={ld} />
+      <SectionPage
+        section={section}
+        text={text}
+        items={items}
+        settings={settings}
+        tabs={tabsFor(section.key)}
+        admin={admin}
+        category={category}
+        query={query}
+        eyebrow={eyebrowFor(section.key)}
+        menu={menu}
+        extra={customMatch?.kind === "section" ? customMatch.custom.item : undefined}
+      />
+    </>
   );
 }
