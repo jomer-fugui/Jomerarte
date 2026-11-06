@@ -159,6 +159,31 @@ como corresponde). El valor por defecto es "sin entrenamiento" también para los
 (`src/app/(site)/page.tsx`, `[...slug]/page.tsx`, `buscar/`, `layout.tsx`, `error.tsx`, `not-found.tsx`), que
 ahora viven bajo `/h/[site]/`.
 
+### 3.7-bis Por qué `sitemap.xml`, `robots.txt` y `manifest.webmanifest` NO son `force-static`
+
+Cuando el sitio se desplegó por primera vez, Vercel falló con:
+
+```
+Error: Invariant: failed to find source route /h/[site]/sitemap.xml for prerender /h/[site]/sitemap.xml
+```
+
+No es un error del código: es un choque entre dos cosas que Next 16 no combina bien.
+
+- Vercel no corre `next build` pelado: al final le enchufa un **adaptador** que revisa el resultado
+  del build. Ese paso **solo existe en Vercel**, por eso en la computadora compilaba.
+- Una ruta que **se llama como un archivo de metadatos** (`sitemap.xml`, `robots.txt`,
+  `manifest.webmanifest`) **y** es estática (`force-static`) **dentro de una carpeta con parámetro**
+  (`[site]`) queda anotada como "metadato prerenderizado" y el adaptador, al buscarla, no la
+  encuentra → excepción y build roto.
+
+Solución: esas tres rutas se generan al vuelo (sin `force-static`) y **el CDN las guarda igual una
+hora** gracias a la cabecera `Cache-Control: public, s-maxage=3600`. `llms.txt` y `llms-full.txt`
+sí son estáticas: no se llaman como archivo de metadatos y compilan sin problema.
+
+**Para no volver a pisarlo:** `npm run build:vercel` hace el build con el mismo adaptador y detecta
+esta clase de errores en la computadora. Es el chequeo que hay que correr antes de subir algo que
+toque rutas o configuración de Next.
+
 ### 3.8 Orden y limpieza del repositorio
 
 - **`.gitignore`**: ya lo habías creado vos en GitHub y está bien (`node_modules`, `.next`, `.env*` con la
