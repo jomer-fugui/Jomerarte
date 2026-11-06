@@ -2,7 +2,12 @@ import { siteFromSlug } from "@/lib/site";
 import { sitemapEntries } from "@/lib/sitemap-entries";
 import { sitemapToXml } from "@/lib/sitemap-xml";
 
-export const dynamic = "force-static";
+// OJO: acá NO va `export const dynamic = "force-static"`.
+// El build de Vercel (su adaptador) se cae con
+//   "Invariant: failed to find source route /h/[site]/sitemap.xml for prerender /h/[site]/sitemap.xml"
+// cuando una ruta que se llama como un archivo de metadatos (sitemap.xml, robots.txt,
+// manifest.webmanifest) es estática dentro de una carpeta con parámetro ([site]).
+// Se genera al vuelo y igual queda cacheada una hora en el CDN: mirá la cabecera Cache-Control.
 export const revalidate = 3600;
 
 /** sitemap.xml propio de cada sitio (el principal y cada subdominio), con fechas e imágenes. */
