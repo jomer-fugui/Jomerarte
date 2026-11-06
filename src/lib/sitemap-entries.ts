@@ -82,5 +82,19 @@ export async function sitemapEntries(site: SiteContext): Promise<MetadataRoute.S
       });
     }
   }
-  return entries;
+  return unique(entries);
+}
+
+/**
+ * Sin direcciones repetidas (una página puede aparecer en dos grupos del menú) y sin imágenes
+ * repetidas dentro de la misma página: los buscadores lo aceptan, pero es ruido y agranda el archivo.
+ */
+function unique(entries: MetadataRoute.Sitemap): MetadataRoute.Sitemap {
+  const byUrl = new Map<string, (typeof entries)[number]>();
+  for (const e of entries) {
+    if (byUrl.has(e.url)) continue;
+    const images = e.images ? [...new Set(e.images)] : undefined;
+    byUrl.set(e.url, images?.length ? { ...e, images } : { ...e, images: undefined });
+  }
+  return [...byUrl.values()];
 }
