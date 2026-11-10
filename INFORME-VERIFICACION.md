@@ -1,7 +1,7 @@
 # Informe de correcciones y verificación — Jomerarte
 
 **Fecha:** 5 de noviembre de 2026
-**Rama:** `arena/ee2a635d-jomerarte`
+**Rama:** `arena/03f02bbe-jomerarte` (los puntos 3.7-bis y 3.9 son de esta rama)
 **Base:** este documento complementa al informe anterior (`REVISION-CODIGO-Y-CPU.md`), que es la **revisión de
 solo lectura** del estado inicial y el diagnóstico del aviso de CPU. Acá está lo que se aplicó y cómo se verificó.
 
@@ -194,6 +194,61 @@ toque rutas o configuración de Next.
   copia; ahora queda **versionado** (recomendado: es lo que hace que Vercel instale exactamente las mismas
   versiones que probaste). `node_modules/` va ignorado, como corresponde. Si algún día te aparece otro
   `package-lock.json` adentro de una subcarpeta, ese sí es basura y se puede borrar.
+
+### 3.9 Trucos de juegos (página nueva)
+
+Tipo de página nuevo llamado **“Trucos de juegos”**, que se elige al crear una página desde el panel
+(“Páginas personalizadas”) y se puede usar en el sitio principal o en cualquier subdominio.
+
+**Cómo se ve para el visitante** (`src/components/views/CheatsTables.tsx`, `src/lib/cheats.ts`, `src/lib/sections.ts`)
+
+- Un cuadro por juego, con el nombre del juego como encabezado y tres columnas: **Código del truco · Para qué
+  sirve · Detalle**. El nombre del juego no se repite en cada fila: encabeza su tabla (así lo pediste: una tabla
+  por juego).
+- Cada código tiene su botón **Copiar**. Arriba de cada juego hay tres acciones: **Copiar códigos** (todos los
+  códigos, uno por línea), **Descargar .txt** (el juego completo, legible en Windows y Android) y
+  **Imprimir / PDF** (imprime solo ese juego; en el diálogo del navegador se elige “Guardar como PDF”).
+  Al principio de la página hay un **Imprimir todo / PDF**.
+- **Buscador**: filtra al instante y **encuentra por nombre del juego, categoría, código, “para qué sirve” y
+  detalle**. Así “armas”, “sin policías” o “policía” encuentran el truco aunque esa palabra no esté en el título.
+  También hay chips de categoría. La búsqueda y la categoría quedan en la dirección (`?q=…&cat=…`) para poder
+  compartir el enlace.
+- En el celular cada truco se ve como ficha (código + copiar, para qué sirve y detalle); al imprimir o en
+  pantalla grande se ve como tabla.
+
+**Cómo se carga desde el panel**
+
+- **De a uno**: “Agregar truco” (los campos nuevos son *Código del truco* y *Para qué sirve*; el detalle va en el
+  campo de siempre).
+- **En bloque**: botón **Importar trucos** en la lista de la página
+  (`src/app/admin/(panel)/s/[key]/importar/page.tsx` + `CheatImportForm.tsx` + `importCheatsAction`).
+  1. Se elige el juego (uno que ya exista o uno nuevo).
+  2. Se pega la lista, una línea por truco: `código; para qué sirve; detalle`.
+     Se acepta punto y coma, tabulación (pegado directo desde Excel) o `|`. Si la planilla trae la columna del
+     juego adelante, se ignora (el juego es el que se eligió).
+  3. Antes de guardar se muestra la vista previa con la cantidad y los primeros trucos.
+  4. Los trucos repetidos en la misma lista y los que ya estaban cargados en ese juego se saltean solos, y al
+     volver a la lista se avisa cuántos se agregaron y cuántos se saltearon.
+
+**Base de datos**
+
+- Dos columnas nuevas en `items`: `code` (código del truco) y `purpose` (“para qué sirve”).
+- Se agregan solas: `SCHEMA_VERSION` pasó de **8 a 9** y el `ALTER TABLE … ADD COLUMN IF NOT EXISTS` está en
+  `src/lib/seed.ts`. Probado sobre una base ya existente (versión 8): las columnas se crean, el contenido no se
+  toca y la versión queda en 9.
+
+**Buscador general del sitio** (`src/lib/search.ts`): además del nombre y la categoría, ahora mira el código y
+“para qué sirve”, y muestra cada truco como `CÓDIGO · para qué sirve` con el juego abajo.
+
+**Verificación hecha**
+
+- `npx tsc --noEmit` sin errores y `npx eslint .` sin problemas.
+- `npm run build:vercel` termina bien e incluye la ruta nueva `/admin/s/[key]/importar`.
+- Con la base de prueba: página pública 200 con dos juegos (10 trucos) y dos tablas; buscador por “armas”,
+  “sin policías”, “policía” y por código devuelve el truco correcto; la importación guardó código, “para qué
+  sirve”, detalle y categoría, respetó el orden y salteó los repetidos.
+- La impresión por juego y la descarga `.txt` no se pudieron probar en un navegador real desde acá (no hay
+  navegador en el entorno): conviene darles una pasada rápida en el celular y en la computadora.
 
 ---
 

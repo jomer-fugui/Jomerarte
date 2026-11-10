@@ -14,6 +14,8 @@ export type FieldKey =
   | "rating"
   | "location"
   | "links"
+  | "code"
+  | "purpose"
   | "slug";
 
 export type Layout =
@@ -33,6 +35,7 @@ export type Layout =
   | "prices"
   | "donations"
   | "games"
+  | "cheats"
   | "custom";
 
 export type GroupKey =
@@ -166,6 +169,26 @@ const PRICE_FIELDS = (what: string): SectionDef["fields"] => ({
   unit: "Unidad (ej: por boca, por hora, rollo)",
   price: "Precio",
 });
+
+/** Trucos de juegos: el código que se copia y “para qué sirve” */
+const CHEAT_FIELDS: SectionDef["fields"] = {
+  title: "Nombre del juego (ej: GTA San Andreas (PC))",
+  code: "Código del truco (lo que se copia)",
+  purpose: "Para qué sirve (ej: Pack de armas 1)",
+  content: "Detalle del truco (qué incluye, cómo se usa)",
+  category: "Categoría (puedes elegir varias)",
+};
+
+export const CHEAT_CATEGORIES = [
+  "Armas",
+  "Vida y salud",
+  "Vehículos",
+  "Dinero",
+  "Policía",
+  "Personaje",
+  "Mundo y clima",
+  "Ajustes del juego",
+];
 
 export const FRASES_CATEGORIES = [
   "Ego",
@@ -937,6 +960,16 @@ export const PAGE_TYPES: PageTypeDef[] = [
     fields: GAME_FIELDS,
     categories: GAME_CATEGORIES,
     detail: true,
+  },
+  {
+    key: "cheats",
+    label: "Trucos de juegos",
+    description:
+      "Un cuadro por juego con todos sus trucos: código, para qué sirve y detalle. Se pueden copiar de a uno o todos juntos, buscar por código o por para qué sirve, imprimir o guardar en PDF y descargar como archivo de texto.",
+    icon: "gamepad",
+    itemLabel: "truco",
+    fields: CHEAT_FIELDS,
+    categories: CHEAT_CATEGORIES,
   },
   {
     key: "recommend",

@@ -31,6 +31,8 @@ export type ItemValues = {
   unit: string;
   rating: number;
   location: string;
+  code: string;
+  purpose: string;
   slug: string;
   featured: boolean;
   published: boolean;
@@ -58,6 +60,8 @@ const EMPTY: ItemValues = {
   unit: "",
   rating: 0,
   location: "",
+  code: "",
+  purpose: "",
   slug: "",
   featured: false,
   published: true,
@@ -110,6 +114,7 @@ export function ItemForm({
   const multiCategory = has("category") && section.layout !== "prices";
   const categorySuggestions = Array.from(new Set([...(section.categories ?? []), ...suggestions]));
   const longText = ["story", "custom", "poems", "songs", "characters", "devlog", "inventions", "games"].includes(section.layout);
+  const isCheats = section.layout === "cheats";
   const mlCapable = has("price") && (has("linkUrl") || section.layout === "prices");
   const mlRelated = v.mlId !== "" || v.platform === "mercadolibre" || isMlUrl(v.linkUrl);
 
@@ -257,11 +262,37 @@ export function ItemForm({
               )}
             </Field>
           ))}
+        {(has("code") || has("purpose")) && (
+          <div className="grid gap-4 sm:grid-cols-2">
+            {has("code") && (
+              <Field label={f.code} hint="Tal cual se escribe en el juego. Cada truco tiene su botón para copiarlo.">
+                <input
+                  name="code"
+                  value={v.code}
+                  onChange={(e) => set("code", e.target.value)}
+                  placeholder="LXGIWYL"
+                  className="input font-mono"
+                />
+              </Field>
+            )}
+            {has("purpose") && (
+              <Field label={f.purpose} hint="También se puede buscar por este texto (ej: “armas”, “sin policías”).">
+                <input
+                  name="purpose"
+                  value={v.purpose}
+                  onChange={(e) => set("purpose", e.target.value)}
+                  placeholder="Pack de armas 1"
+                  className="input"
+                />
+              </Field>
+            )}
+          </div>
+        )}
         {has("content") && (
           <Field label={f.content} hint={FORMAT_HINT}>
             <textarea
               name="content"
-              rows={longText ? 14 : 6}
+              rows={isCheats ? 3 : longText ? 14 : 6}
               value={v.content}
               onChange={(e) => set("content", e.target.value)}
               className="input font-mono text-[13px] leading-relaxed"

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { Check, ChevronLeft, ChevronRight, Copy, FileText, Music, Play, Printer, X } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Copy, Download, FileText, Music, Play, Printer, X } from "lucide-react";
 import { cn, mediaKind, mediaThumb } from "@/lib/format";
 import { MediaPlayer } from "./media";
 
@@ -30,10 +30,60 @@ export function CopyButton({ text, label = "Copiar", className }: { text: string
   );
 }
 
-export function PrintButton() {
+/**
+ * Imprime la página (y desde el navegador se puede “Guardar como PDF”).
+ * Si se pasa `target` (el id de un elemento), imprime solo ese bloque.
+ */
+export function PrintButton({ target, label = "Imprimir / guardar PDF" }: { target?: string; label?: string }) {
+  function print() {
+    const focus = target ? document.getElementById(target) : null;
+    const html = document.documentElement;
+    if (focus) {
+      html.classList.add("printing-one");
+      focus.setAttribute("data-print-focus", "true");
+    }
+    const done = () => {
+      html.classList.remove("printing-one");
+      focus?.removeAttribute("data-print-focus");
+      window.removeEventListener("afterprint", done);
+      window.removeEventListener("focus", done);
+    };
+    // `afterprint` cuando el navegador lo avisa; `focus` como red de seguridad al volver a la página
+    window.addEventListener("afterprint", done);
+    window.addEventListener("focus", done);
+    window.print();
+  }
   return (
-    <button type="button" onClick={() => window.print()} className="btn-ghost no-print">
-      <Printer className="h-4 w-4" /> Imprimir / guardar PDF
+    <button type="button" onClick={print} className="btn-ghost no-print">
+      <Printer className="h-4 w-4" /> {label}
+    </button>
+  );
+}
+
+/** Descarga un texto como archivo (sirve para leer los trucos en Windows o Android). */
+export function DownloadTextButton({
+  text,
+  filename,
+  label = "Descargar .txt",
+}: {
+  text: string;
+  filename: string;
+  label?: string;
+}) {
+  function download() {
+    const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  return (
+    <button type="button" onClick={download} className="btn-ghost btn-sm no-print">
+      <Download className="h-3.5 w-3.5" /> {label}
     </button>
   );
 }

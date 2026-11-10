@@ -54,6 +54,10 @@ export const items = pgTable(
     unit: text("unit").notNull().default(""),
     rating: integer("rating").notNull().default(0),
     location: text("location").notNull().default(""),
+    /** Trucos de juegos: el código del truco (lo que se copia) */
+    code: text("code").notNull().default(""),
+    /** Trucos de juegos: para qué sirve el truco (ej: “Pack de armas 1”) */
+    purpose: text("purpose").notNull().default(""),
     /** Mercado Libre: código del producto, tipo (item = publicación · product = página de producto), si el precio se actualiza solo y el último resultado */
     mlId: varchar("ml_id", { length: 40 }).notNull().default(""),
     mlType: varchar("ml_type", { length: 10 }).notNull().default(""),
