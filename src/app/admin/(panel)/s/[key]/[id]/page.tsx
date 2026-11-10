@@ -34,6 +34,8 @@ function toValues(it: Item): ItemValues & { id: number } {
     unit: it.unit,
     rating: it.rating,
     location: it.location,
+    code: it.code,
+    purpose: it.purpose,
     slug: it.slug,
     featured: it.featured,
     published: it.published,

@@ -415,11 +415,11 @@ function CategoryBar({
 }
 
 /** Suscribe a los cambios de la dirección (atrás/adelante del navegador). */
-function subscribeToUrl(onChange: () => void): () => void {
+export function subscribeToUrl(onChange: () => void): () => void {
   window.addEventListener("popstate", onChange);
   return () => window.removeEventListener("popstate", onChange);
 }
 
-function currentUrlSearch(): string {
+export function currentUrlSearch(): string {
   return window.location.search;
 }

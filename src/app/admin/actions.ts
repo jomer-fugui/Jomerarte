@@ -37,6 +37,8 @@ import { SITE_COOKIE, getCurrentSite, getSiteSlugs, type SiteContext } from "@/l
 import { createSite, deleteSite } from "@/lib/sites";
 import { isBlobUrl } from "@/lib/storage";
 import { cleanLinks, type ItemLink } from "@/lib/links";
+import { foldText } from "@/lib/format";
+import { parseCheatRows } from "@/lib/cheats";
 import { notifyItemChange, notifySearchEngines } from "@/lib/indexnow";
 import { isMlShortLink, isMlUrl, parseMlRef, type MlRef } from "@/lib/ml-ref";
 import { resolveShortLink, syncMlPrices } from "@/lib/mercadolibre";
@@ -238,6 +240,8 @@ export async function saveItemAction(_prev: FormState, formData: FormData): Prom
     unit: str(formData, "unit", 200),
     rating: Math.max(0, Math.min(5, Number(str(formData, "rating", 2)) || 0)),
     location: str(formData, "location", 500),
+    code: str(formData, "code", 200),
+    purpose: str(formData, "purpose", 300),
     featured: formData.get("featured") === "on",
     published: formData.get("published") === "on",
     updatedAt: new Date(),
@@ -294,6 +298,71 @@ export async function saveItemAction(_prev: FormState, formData: FormData): Prom
   await notifyItemChange({ id: savedId, site: site.slug, section: section.key, title: values.title });
   refresh();
   redirect(`/admin/s/${section.key}?ok=${id ? "updated" : "created"}`);
+}
+
+/* ───────────── Trucos de juegos: carga de una lista entera */
+export async function importCheatsAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  await requireAdmin();
+  const site = await siteFor(formData);
+  if (!site) return { error: SITE_MISMATCH };
+  const key = str(formData, "section", 64);
+  const found = await getAnySection(key);
+  if (!found) return { error: "Sección inválida." };
+  const section = found.section;
+  if (section.layout !== "cheats") return { error: "Esta página no es de trucos de juegos." };
+
+  const game = str(formData, "game", 500);
+  if (!game) return { error: "Escribe o elige el nombre del juego." };
+  const category = str(formData, "category", 160);
+  const rows = parseCheatRows(str(formData, "rows", 200000), game);
+  if (rows.length === 0) {
+    return {
+      error:
+        "No se encontró ningún truco. Poné una línea por truco, con el código primero y separado por punto y coma (o pegá directo desde Excel).",
+    };
+  }
+  if (rows.length > 500) return { error: "Son demasiados trucos de una vez (máximo 500). Divide la lista en partes." };
+
+  // Un truco que ya está cargado en ese juego no se vuelve a agregar (así se puede pegar la lista completa de nuevo)
+  const existing = await db
+    .select({ code: items.code })
+    .from(items)
+    .where(and(eq(items.site, site.slug), eq(items.section, section.key), eq(items.title, game)));
+  const already = new Set(existing.map((e) => foldText(e.code)).filter(Boolean));
+  const fresh = rows.filter((r) => !r.code || !already.has(foldText(r.code)));
+  const skipped = rows.length - fresh.length;
+  if (fresh.length === 0) {
+    return { error: "Esos trucos ya están cargados en este juego. Si querés cambiarlos, editalos uno por uno." };
+  }
+
+  const [last] = await db
+    .select({ sortOrder: items.sortOrder })
+    .from(items)
+    .where(and(eq(items.site, site.slug), eq(items.section, section.key)))
+    .orderBy(desc(items.sortOrder))
+    .limit(1);
+  const start = (last?.sortOrder ?? 0) + 1;
+
+  const created = await db
+    .insert(items)
+    .values(
+      fresh.map((r, i) => ({
+        site: site.slug,
+        section: section.key,
+        title: game,
+        code: r.code,
+        purpose: r.purpose,
+        content: r.detail,
+        category,
+        categories: category ? [category] : [],
+        sortOrder: start + i,
+        published: true,
+      })),
+    )
+    .returning({ id: items.id });
+  refresh();
+  if (created[0]) await notifyItemChange({ id: created[0].id, site: site.slug, section: section.key, title: game });
+  redirect(`/admin/s/${section.key}?ok=trucos&n=${fresh.length}${skipped > 0 ? `&skip=${skipped}` : ""}`);
 }
 
 /* ───────────── Páginas personalizadas (tipo + ubicación en el menú) */

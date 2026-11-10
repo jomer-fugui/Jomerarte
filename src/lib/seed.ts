@@ -12,8 +12,9 @@ import { ensureLegacySubsites } from "./sites";
  *  v6: precios automáticos de Mercado Libre (código del producto y último precio consultado).
  *  v7: orden del menú, edición de páginas predeterminadas y orden/estilo de las categorías.
  *  v8: los robots que solo entrenan modelos de IA quedan bloqueados (los asistentes siguen entrando).
+ *  v9: trucos de juegos (código del truco y para qué sirve).
  */
-const SCHEMA_VERSION = "8";
+const SCHEMA_VERSION = "9";
 
 const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS "sites" (
@@ -41,6 +42,8 @@ CREATE TABLE IF NOT EXISTS "items" (
   "unit" text DEFAULT '' NOT NULL,
   "rating" integer DEFAULT 0 NOT NULL,
   "location" text DEFAULT '' NOT NULL,
+  "code" text DEFAULT '' NOT NULL,
+  "purpose" text DEFAULT '' NOT NULL,
   "ml_id" varchar(40) DEFAULT '' NOT NULL,
   "ml_type" varchar(10) DEFAULT '' NOT NULL,
   "ml_sync" boolean DEFAULT false NOT NULL,
@@ -67,6 +70,8 @@ ALTER TABLE "items" ADD COLUMN IF NOT EXISTS "ml_type" varchar(10) DEFAULT '' NO
 ALTER TABLE "items" ADD COLUMN IF NOT EXISTS "ml_sync" boolean DEFAULT false NOT NULL;
 ALTER TABLE "items" ADD COLUMN IF NOT EXISTS "ml_info" jsonb DEFAULT '{}'::jsonb NOT NULL;
 ALTER TABLE "items" ADD COLUMN IF NOT EXISTS "options" jsonb DEFAULT '{}'::jsonb NOT NULL;
+ALTER TABLE "items" ADD COLUMN IF NOT EXISTS "code" text DEFAULT '' NOT NULL;
+ALTER TABLE "items" ADD COLUMN IF NOT EXISTS "purpose" text DEFAULT '' NOT NULL;
 UPDATE "items" SET "categories" = jsonb_build_array("category") WHERE "category" <> '' AND "categories" = '[]'::jsonb;
 CREATE INDEX IF NOT EXISTS "items_site_section_idx" ON "items" USING btree ("site","section","sort_order");
 DROP INDEX IF EXISTS "items_section_idx";

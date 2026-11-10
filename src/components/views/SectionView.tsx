@@ -24,6 +24,7 @@ import { cn, excerpt, foldText, formatDate, itemCategories, slugify } from "@/li
 import { getPlatform } from "@/lib/platforms";
 import { formatMoney, mlDiscountPercent, mlStatusLabel } from "@/lib/ml-ref";
 import { CopyButton, Gallery, PrintButton } from "../client";
+import { CheatsTables, type CheatGame } from "./CheatsTables";
 import { FilterableList } from "../FilterableList";
 import { LinkButtons } from "../LinkButtons";
 import { MediaPlayer } from "../media";
@@ -180,6 +181,8 @@ export function SectionBody(props: ViewProps) {
       return <PostsGrid {...props} />;
     case "prices":
       return <PricesTable {...props} />;
+    case "cheats":
+      return <CheatsTable {...props} />;
     case "donations":
       return <DonationsList {...props} />;
     default:
@@ -852,6 +855,66 @@ function PostsGrid(props: ViewProps) {
           </article>
         );
       }}
+    />
+  );
+}
+
+/* ───────────────────────── Trucos de juegos */
+/** Junta los trucos por juego: el nombre del juego viene en el título de cada truco. */
+function groupByGame(items: Item[]): CheatGame[] {
+  const games: CheatGame[] = [];
+  const byName = new Map<string, CheatGame>();
+  for (const it of items) {
+    const name = it.title.trim() || "Sin juego";
+    let game = byName.get(name);
+    if (!game) {
+      game = { name, rows: [] };
+      byName.set(name, game);
+      games.push(game);
+    }
+    game.rows.push({
+      id: it.id,
+      code: it.code,
+      purpose: it.purpose,
+      detail: it.content,
+      cats: itemCategories(it),
+    });
+  }
+  return games;
+}
+
+function CheatsTable({ section, items, category, query, preview }: ViewProps) {
+  const games = groupByGame(items);
+  if (preview) {
+    return (
+      <div className="grid gap-4 md:grid-cols-2">
+        {games.slice(0, 4).map((g) => (
+          <article key={g.name} className="card p-5">
+            <h3 className="font-display text-lg font-bold text-white">{g.name}</h3>
+            <p className="mb-3 text-xs text-zinc-500">
+              {g.rows.length} {g.rows.length === 1 ? "truco" : "trucos"}
+            </p>
+            <ul className="space-y-1 text-sm">
+              {g.rows.slice(0, 4).map((r) => (
+                <li key={r.id} className="flex flex-wrap items-baseline gap-x-2">
+                  <code className="font-mono text-xs text-accent-light">{r.code || "—"}</code>
+                  <span className="text-zinc-400">{r.purpose}</span>
+                </li>
+              ))}
+            </ul>
+            {g.rows.length > 4 && <p className="mt-2 text-xs text-zinc-500">y {g.rows.length - 4} más…</p>}
+          </article>
+        ))}
+      </div>
+    );
+  }
+  const { categories, counts } = categorize(section, items);
+  return (
+    <CheatsTables
+      games={games}
+      categories={categories.map((c) => ({ name: c, count: counts.get(c) ?? 0 }))}
+      initialQuery={query ?? ""}
+      initialCat={category ?? ""}
     />
   );
 }

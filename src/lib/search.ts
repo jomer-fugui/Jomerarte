@@ -140,10 +140,11 @@ export async function searchSite(site: SiteContext, rawQuery: string): Promise<S
       }
     }
 
+    // En los trucos de juegos también se busca por el código y por “para qué sirve”
     const score = scoreOf(tokens, {
       title: foldText(it.title),
       cats: foldText(cats.join(" ")),
-      sub: foldText(`${it.subtitle} ${it.location} ${it.unit}`),
+      sub: foldText(`${it.subtitle} ${it.location} ${it.unit} ${it.purpose} ${it.code}`),
       body: foldText(it.content.slice(0, 5000)),
     });
     if (score === 0) continue;
@@ -166,14 +167,20 @@ export async function searchSite(site: SiteContext, rawQuery: string): Promise<S
     }
     group.total += 1;
     group.best = Math.max(group.best, score);
+    // Un truco se muestra como “CÓDIGO · para qué sirve”, con el juego en el texto de abajo
+    const isCheat = sec.def.layout === "cheats";
     group.hits.push({
       id: String(it.id),
-      title: it.title || excerpt(it.content, 80),
+      title: isCheat
+        ? [it.code, it.purpose].filter(Boolean).join(" · ") || it.title || excerpt(it.content, 80)
+        : it.title || excerpt(it.content, 80),
       href,
       image: it.imageUrl,
       icon: sec.def.icon,
       cats,
-      snippet: excerpt(it.subtitle || it.content, 140),
+      snippet: isCheat
+        ? [it.title, excerpt(it.content, 120)].filter(Boolean).join(" — ")
+        : excerpt(it.subtitle || it.content, 140),
       price: it.price,
       score,
     });
