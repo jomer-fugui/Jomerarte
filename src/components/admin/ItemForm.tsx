@@ -265,7 +265,10 @@ export function ItemForm({
         {(has("code") || has("purpose")) && (
           <div className="grid gap-4 sm:grid-cols-2">
             {has("code") && (
-              <Field label={f.code} hint="Tal cual se escribe en el juego. Cada truco tiene su botón para copiarlo.">
+              <Field
+                label={f.code}
+                hint="Tal cual se escribe en el juego. Si lo dejás vacío, este renglón es la explicación de cómo se introducen los trucos: aparece en el encabezado del juego, sin desplegar."
+              >
                 <input
                   name="code"
                   value={v.code}

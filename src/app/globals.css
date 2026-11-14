@@ -215,25 +215,4 @@ details > summary::-webkit-details-marker {
     border-color: #ccc !important;
     box-shadow: none !important;
   }
-  /* Trucos de juegos: al imprimir siempre se ven como tabla (aunque en el celular sean fichas) */
-  [data-cheat-table] {
-    display: table !important;
-  }
-  [data-cheat-cards] {
-    display: none !important;
-  }
-  /* “Imprimir este juego”: se oculta todo menos el bloque elegido */
-  html.printing-one * {
-    visibility: hidden !important;
-  }
-  html.printing-one [data-print-focus="true"],
-  html.printing-one [data-print-focus="true"] * {
-    visibility: visible !important;
-  }
-  html.printing-one [data-print-focus="true"] {
-    position: absolute !important;
-    top: 0 !important;
-    left: 0 !important;
-    width: 100% !important;
-  }
 }

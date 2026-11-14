@@ -202,28 +202,39 @@ Tipo de página nuevo llamado **“Trucos de juegos”**, que se elige al crear 
 
 **Cómo se ve para el visitante** (`src/components/views/CheatsTables.tsx`, `src/lib/cheats.ts`, `src/lib/sections.ts`)
 
-- Un cuadro por juego, con el nombre del juego como encabezado y tres columnas: **Código del truco · Para qué
-  sirve · Detalle**. El nombre del juego no se repite en cada fila: encabeza su tabla (así lo pediste: una tabla
-  por juego).
+- Un cuadro **desplegable** por juego. Cerrado se ve el nombre del juego, la cantidad de trucos y la
+  **explicación de cómo se introducen los trucos** (ej: “los códigos deben teclearse en la pantalla de inicio…”);
+  al abrirlo aparecen las tres columnas: **Código del truco · Para qué sirve · Detalle**. El nombre del juego no se
+  repite en cada fila: encabeza su tabla. Arriba hay un botón **Abrir todos / Cerrar todos**, y cuando hay una
+  búsqueda o una categoría activa los juegos se abren solos.
 - Cada código tiene su botón **Copiar**. Arriba de cada juego hay tres acciones: **Copiar códigos** (todos los
   códigos, uno por línea), **Descargar .txt** (el juego completo, legible en Windows y Android) y
-  **Imprimir / PDF** (imprime solo ese juego; en el diálogo del navegador se elige “Guardar como PDF”).
-  Al principio de la página hay un **Imprimir todo / PDF**.
+  **Imprimir / PDF** (solo ese juego). Al principio de la página hay un **Imprimir todo / PDF**.
+- **Cómo se imprime (corregido):** el botón ya no imprime la página del sitio, porque el navegador arrastraba el
+  menú, el buscador y los juegos cerrados y terminaba agregando hojas en blanco (en la prueba: 20 trucos en 2
+  hojas, pero 22 páginas en total). Ahora se arma un **documento aparte**, solo con los trucos pedidos, y se manda
+  a imprimir ese (`src/lib/print-sheet.ts`): entra en las hojas que tiene que entrar y en el diálogo se elige
+  “Guardar como PDF”. El documento respeta el ancho de la hoja, repite el encabezado de la tabla en cada página,
+  no corta un truco al medio (`break-inside: avoid`), empieza cada juego en una hoja nueva y lleva el nombre del
+  sitio, la dirección y la fecha al pie.
 - **Buscador**: filtra al instante y **encuentra por nombre del juego, categoría, código, “para qué sirve” y
   detalle**. Así “armas”, “sin policías” o “policía” encuentran el truco aunque esa palabra no esté en el título.
   También hay chips de categoría. La búsqueda y la categoría quedan en la dirección (`?q=…&cat=…`) para poder
   compartir el enlace.
-- En el celular cada truco se ve como ficha (código + copiar, para qué sirve y detalle); al imprimir o en
-  pantalla grande se ve como tabla.
+- En el celular cada truco se ve como ficha (código + copiar, para qué sirve y detalle); en pantalla grande,
+  como tabla.
 
 **Cómo se carga desde el panel**
 
 - **De a uno**: “Agregar truco” (los campos nuevos son *Código del truco* y *Para qué sirve*; el detalle va en el
-  campo de siempre).
+  campo de siempre). Si el **código queda vacío**, ese renglón es la **explicación de cómo se introducen los
+  trucos** de ese juego: no aparece como truco en la tabla, se muestra en el encabezado (se ve sin desplegar) y
+  también entra en la búsqueda y en el `.txt`.
 - **En bloque**: botón **Importar trucos** en la lista de la página
   (`src/app/admin/(panel)/s/[key]/importar/page.tsx` + `CheatImportForm.tsx` + `importCheatsAction`).
   1. Se elige el juego (uno que ya exista o uno nuevo).
-  2. Se pega la lista, una línea por truco: `código; para qué sirve; detalle`.
+  2. Se pega la lista, una línea por truco: `código; para qué sirve; detalle`. Una línea que empieza con `;`
+     (sin código) es la explicación del juego.
      Se acepta punto y coma, tabulación (pegado directo desde Excel) o `|`. Si la planilla trae la columna del
      juego adelante, se ignora (el juego es el que se eligió).
   3. Antes de guardar se muestra la vista previa con la cantidad y los primeros trucos.
@@ -244,11 +255,15 @@ Tipo de página nuevo llamado **“Trucos de juegos”**, que se elige al crear 
 
 - `npx tsc --noEmit` sin errores y `npx eslint .` sin problemas.
 - `npm run build:vercel` termina bien e incluye la ruta nueva `/admin/s/[key]/importar`.
-- Con la base de prueba: página pública 200 con dos juegos (10 trucos) y dos tablas; buscador por “armas”,
+- Con la base de prueba: página pública 200 con los juegos cerrados (solo encabezado, cantidad y explicación);
+  al importar una lista con una línea sin código, esa línea quedó guardada como explicación del juego;
+  buscador por “armas”,
   “sin policías”, “policía” y por código devuelve el truco correcto; la importación guardó código, “para qué
   sirve”, detalle y categoría, respetó el orden y salteó los repetidos.
-- La impresión por juego y la descarga `.txt` no se pudieron probar en un navegador real desde acá (no hay
-  navegador en el entorno): conviene darles una pasada rápida en el celular y en la computadora.
+- La impresión y la descarga `.txt` no se pudieron probar en un navegador real desde acá (el entorno no tiene
+  navegador ni forma de generar un PDF): el documento de impresión se revisó armando el HTML con datos reales y
+  leyendo el resultado, y se agregó un camino alternativo (marco invisible) por si el navegador bloquea la
+  pestaña nueva. Conviene una pasada rápida en el celular y en la computadora.
 
 ---
 
