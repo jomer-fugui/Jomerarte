@@ -8,7 +8,8 @@ import { parseCheatRows } from "@/lib/cheats";
 import { cn } from "@/lib/format";
 import { SubmitButton } from "./SubmitButton";
 
-const EXAMPLE = `LXGIWYL; Pack de armas 1; bate, pistola, escopeta, MP5, AK-47, rifle, ametralladora, lanzamisiles y spray.
+const EXAMPLE = `; Cómo se introducen los trucos; los códigos deben teclearse en la pantalla de inicio del juego, justo donde aparece el texto "Haz clic para continuar".
+LXGIWYL; Pack de armas 1; bate, pistola, escopeta, MP5, AK-47, rifle, ametralladora, lanzamisiles y spray.
 KJKSZPJ; Pack de armas 2; cuchillo, desert eagle, escopeta recortada, uzi, M4, francotirador y lanzacohetes.
 AEZAKMI; Sin policías; quita la búsqueda de la policía hasta que lo desactives.
 HESOYAM; Salud, chaleco y dinero; vida y chaleco al máximo y $250.000.`;
@@ -131,7 +132,7 @@ export function CheatImportForm({
             <ul className="mt-3 space-y-1 text-xs">
               {parsed.slice(0, 5).map((r, i) => (
                 <li key={`${r.code}-${i}`} className="flex flex-wrap gap-x-2">
-                  <code className="font-mono text-accent-light">{r.code || "—"}</code>
+                  <code className="font-mono text-accent-light">{r.code || "(explicación)"}</code>
                   <span className="text-zinc-400">{r.purpose || "(sin “para qué sirve”)"}</span>
                 </li>
               ))}

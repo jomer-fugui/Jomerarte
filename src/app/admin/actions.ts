@@ -325,11 +325,16 @@ export async function importCheatsAction(_prev: FormState, formData: FormData): 
 
   // Un truco que ya está cargado en ese juego no se vuelve a agregar (así se puede pegar la lista completa de nuevo)
   const existing = await db
-    .select({ code: items.code })
+    .select({ code: items.code, purpose: items.purpose, content: items.content })
     .from(items)
     .where(and(eq(items.site, site.slug), eq(items.section, section.key), eq(items.title, game)));
-  const already = new Set(existing.map((e) => foldText(e.code)).filter(Boolean));
-  const fresh = rows.filter((r) => !r.code || !already.has(foldText(r.code)));
+  const alreadyCodes = new Set(existing.map((e) => foldText(e.code)).filter(Boolean));
+  const alreadyNotes = new Set(
+    existing.filter((e) => !e.code.trim()).map((e) => foldText(`${e.purpose}|${e.content}`)),
+  );
+  const fresh = rows.filter((r) =>
+    r.code ? !alreadyCodes.has(foldText(r.code)) : !alreadyNotes.has(foldText(`${r.purpose}|${r.detail}`)),
+  );
   const skipped = rows.length - fresh.length;
   if (fresh.length === 0) {
     return { error: "Esos trucos ya están cargados en este juego. Si querés cambiarlos, editalos uno por uno." };

@@ -30,31 +30,10 @@ export function CopyButton({ text, label = "Copiar", className }: { text: string
   );
 }
 
-/**
- * Imprime la página (y desde el navegador se puede “Guardar como PDF”).
- * Si se pasa `target` (el id de un elemento), imprime solo ese bloque.
- */
-export function PrintButton({ target, label = "Imprimir / guardar PDF" }: { target?: string; label?: string }) {
-  function print() {
-    const focus = target ? document.getElementById(target) : null;
-    const html = document.documentElement;
-    if (focus) {
-      html.classList.add("printing-one");
-      focus.setAttribute("data-print-focus", "true");
-    }
-    const done = () => {
-      html.classList.remove("printing-one");
-      focus?.removeAttribute("data-print-focus");
-      window.removeEventListener("afterprint", done);
-      window.removeEventListener("focus", done);
-    };
-    // `afterprint` cuando el navegador lo avisa; `focus` como red de seguridad al volver a la página
-    window.addEventListener("afterprint", done);
-    window.addEventListener("focus", done);
-    window.print();
-  }
+/** Imprime la página tal cual (desde el navegador se puede “Guardar como PDF”). */
+export function PrintButton({ label = "Imprimir / guardar PDF" }: { label?: string }) {
   return (
-    <button type="button" onClick={print} className="btn-ghost no-print">
+    <button type="button" onClick={() => window.print()} className="btn-ghost no-print">
       <Printer className="h-4 w-4" /> {label}
     </button>
   );

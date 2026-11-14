@@ -21,10 +21,11 @@ import type { Item } from "@/lib/data";
 import type { Settings } from "@/lib/defaults";
 import { sortCategories, type SectionDef } from "@/lib/sections";
 import { cn, excerpt, foldText, formatDate, itemCategories, slugify } from "@/lib/format";
+import { buildNote, type CheatGame } from "@/lib/cheats";
 import { getPlatform } from "@/lib/platforms";
 import { formatMoney, mlDiscountPercent, mlStatusLabel } from "@/lib/ml-ref";
 import { CopyButton, Gallery, PrintButton } from "../client";
-import { CheatsTables, type CheatGame } from "./CheatsTables";
+import { CheatsTables } from "./CheatsTables";
 import { FilterableList } from "../FilterableList";
 import { LinkButtons } from "../LinkButtons";
 import { MediaPlayer } from "../media";
@@ -860,17 +861,28 @@ function PostsGrid(props: ViewProps) {
 }
 
 /* ───────────────────────── Trucos de juegos */
-/** Junta los trucos por juego: el nombre del juego viene en el título de cada truco. */
+/**
+ * Junta los trucos por juego: el nombre del juego viene en el título de cada truco.
+ * Un truco cargado sin código es la explicación de cómo se introducen los trucos de ese juego.
+ */
 function groupByGame(items: Item[]): CheatGame[] {
   const games: CheatGame[] = [];
   const byName = new Map<string, CheatGame>();
+  const notes = new Map<string, { purposes: string[]; details: string[] }>();
   for (const it of items) {
     const name = it.title.trim() || "Sin juego";
     let game = byName.get(name);
     if (!game) {
-      game = { name, rows: [] };
+      game = { name, note: null, rows: [] };
       byName.set(name, game);
       games.push(game);
+    }
+    if (!it.code.trim()) {
+      const note = notes.get(name) ?? { purposes: [], details: [] };
+      if (it.purpose.trim()) note.purposes.push(it.purpose);
+      if (it.content.trim()) note.details.push(it.content);
+      notes.set(name, note);
+      continue;
     }
     game.rows.push({
       id: it.id,
@@ -880,10 +892,15 @@ function groupByGame(items: Item[]): CheatGame[] {
       cats: itemCategories(it),
     });
   }
-  return games;
+  for (const game of games) {
+    const note = notes.get(game.name);
+    if (note) game.note = buildNote(note.purposes, note.details);
+  }
+  // Un juego que solo tiene la explicación (sin trucos cargados todavía) no se muestra
+  return games.filter((g) => g.rows.length > 0);
 }
 
-function CheatsTable({ section, items, category, query, preview }: ViewProps) {
+function CheatsTable({ section, items, settings, category, query, preview }: ViewProps) {
   const games = groupByGame(items);
   if (preview) {
     return (
@@ -891,28 +908,35 @@ function CheatsTable({ section, items, category, query, preview }: ViewProps) {
         {games.slice(0, 4).map((g) => (
           <article key={g.name} className="card p-5">
             <h3 className="font-display text-lg font-bold text-white">{g.name}</h3>
-            <p className="mb-3 text-xs text-zinc-500">
+            <p className="mb-2 text-xs text-zinc-500">
               {g.rows.length} {g.rows.length === 1 ? "truco" : "trucos"}
             </p>
+            {g.note && (
+              <p className="mb-2 line-clamp-2 text-xs text-zinc-400">{g.note.purpose || g.note.detail}</p>
+            )}
             <ul className="space-y-1 text-sm">
-              {g.rows.slice(0, 4).map((r) => (
+              {g.rows.slice(0, 3).map((r) => (
                 <li key={r.id} className="flex flex-wrap items-baseline gap-x-2">
-                  <code className="font-mono text-xs text-accent-light">{r.code || "—"}</code>
+                  <code className="font-mono text-xs text-accent-light">{r.code}</code>
                   <span className="text-zinc-400">{r.purpose}</span>
                 </li>
               ))}
             </ul>
-            {g.rows.length > 4 && <p className="mt-2 text-xs text-zinc-500">y {g.rows.length - 4} más…</p>}
           </article>
         ))}
       </div>
     );
   }
-  const { categories, counts } = categorize(section, items);
+  // Las categorías se cuentan solo entre los trucos visibles (la explicación del juego no cuenta)
+  const counts = new Map<string, number>();
+  for (const g of games) for (const r of g.rows) for (const c of r.cats) counts.set(c, (counts.get(c) ?? 0) + 1);
+  const categories = sortCategories([...counts.keys()], (c) => counts.get(c) ?? 0, section.options);
   return (
     <CheatsTables
       games={games}
       categories={categories.map((c) => ({ name: c, count: counts.get(c) ?? 0 }))}
+      siteName={settings.siteName}
+      pageTitle={section.title}
       initialQuery={query ?? ""}
       initialCat={category ?? ""}
     />
