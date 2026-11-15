@@ -22,6 +22,8 @@ import type { Settings } from "@/lib/defaults";
 import { sortCategories, type SectionDef } from "@/lib/sections";
 import { cn, excerpt, foldText, formatDate, itemCategories, slugify } from "@/lib/format";
 import { buildNote, type CheatGame } from "@/lib/cheats";
+import type { FileGroup } from "@/lib/files";
+import { FileLists } from "./FileLists";
 import { getPlatform } from "@/lib/platforms";
 import { formatMoney, mlDiscountPercent, mlStatusLabel } from "@/lib/ml-ref";
 import { CopyButton, Gallery, PrintButton } from "../client";
@@ -184,6 +186,8 @@ export function SectionBody(props: ViewProps) {
       return <PricesTable {...props} />;
     case "cheats":
       return <CheatsTable {...props} />;
+    case "files":
+      return <FilesTable {...props} />;
     case "donations":
       return <DonationsList {...props} />;
     default:
@@ -934,6 +938,64 @@ function CheatsTable({ section, items, settings, category, query, preview }: Vie
   return (
     <CheatsTables
       games={games}
+      categories={categories.map((c) => ({ name: c, count: counts.get(c) ?? 0 }))}
+      siteName={settings.siteName}
+      pageTitle={section.title}
+      initialQuery={query ?? ""}
+      initialCat={category ?? ""}
+    />
+  );
+}
+
+/* ───────────────────────── Listas de archivos */
+/** Junta los archivos por lista: el nombre de la lista viene en el título de cada archivo. */
+function groupByList(items: Item[]): FileGroup[] {
+  const groups: FileGroup[] = [];
+  const byName = new Map<string, FileGroup>();
+  for (const it of items) {
+    const name = it.title.trim() || "Sin lista";
+    let group = byName.get(name);
+    if (!group) {
+      group = { name, rows: [] };
+      byName.set(name, group);
+      groups.push(group);
+    }
+    const file = it.subtitle.trim();
+    if (!file) continue;
+    group.rows.push({ id: it.id, name: file, detail: it.content, cats: itemCategories(it) });
+  }
+  return groups.filter((g) => g.rows.length > 0);
+}
+
+function FilesTable({ section, items, settings, category, query, preview }: ViewProps) {
+  const groups = groupByList(items);
+  if (preview) {
+    return (
+      <div className="grid gap-4 md:grid-cols-2">
+        {groups.slice(0, 4).map((g) => (
+          <article key={g.name} className="card p-5">
+            <h3 className="font-display text-lg font-bold text-white">{g.name}</h3>
+            <p className="mb-2 text-xs text-zinc-500">
+              {g.rows.length} {g.rows.length === 1 ? "archivo" : "archivos"}
+            </p>
+            <ul className="space-y-1 text-sm text-zinc-400">
+              {g.rows.slice(0, 3).map((r) => (
+                <li key={r.id} className="truncate font-mono text-xs">
+                  {r.name}
+                </li>
+              ))}
+            </ul>
+          </article>
+        ))}
+      </div>
+    );
+  }
+  const counts = new Map<string, number>();
+  for (const g of groups) for (const r of g.rows) for (const c of r.cats) counts.set(c, (counts.get(c) ?? 0) + 1);
+  const categories = sortCategories([...counts.keys()], (c) => counts.get(c) ?? 0, section.options);
+  return (
+    <FileLists
+      groups={groups}
       categories={categories.map((c) => ({ name: c, count: counts.get(c) ?? 0 }))}
       siteName={settings.siteName}
       pageTitle={section.title}

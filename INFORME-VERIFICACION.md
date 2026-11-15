@@ -265,6 +265,46 @@ Tipo de página nuevo llamado **“Trucos de juegos”**, que se elige al crear 
   leyendo el resultado, y se agregó un camino alternativo (marco invisible) por si el navegador bloquea la
   pestaña nueva. Conviene una pasada rápida en el celular y en la computadora.
 
+### 3.10 Lista de archivos (página nueva)
+
+Tipo de página **“Lista de archivos”**, también elegible al crear una página desde el panel y usable en el sitio
+principal o en cualquier subdominio. Sirve para mostrar nombres de archivos agrupados por lista, con su detalle.
+
+**Cómo se ve para el visitante** (`src/components/views/FileLists.tsx`, `src/lib/files.ts`)
+
+- Un cuadro **desplegable por lista** (ej: “Lista de juegos para Windows”, “Lista de Sistema Operativo”). Cerrado
+  se ve el nombre de la lista y cuántos archivos tiene; al abrirlo, la tabla con **Nombre · Detalle**.
+- Cada nombre tiene su botón **Copiar**. Arriba de cada lista: **Copiar nombres** (todos, uno por línea),
+  **Descargar .txt** (la lista completa con los detalles, para leer en Windows o Android) e **Imprimir / PDF**
+  (solo esa lista). Arriba de la página: **Imprimir todo / PDF** y **Abrir todas / Cerrar todas**.
+- **Buscador** que filtra al instante por nombre de lista, nombre del archivo, detalle o categoría. La búsqueda y
+  la categoría quedan en la dirección (`?q=…&cat=…`), y cuando hay un filtro activo las listas se abren solas.
+- La impresión funciona igual que en los trucos: arma un documento aparte (`buildFileSheetHtml`), así que no
+  arrastra el menú ni genera hojas en blanco.
+
+**Cómo se carga desde el panel**
+
+- **De a uno**: *Lista o grupo* (título), *Nombre del archivo* y *Detalle* (opcional), más la categoría.
+- **En bloque**: botón **Importar archivos**, con el mismo flujo que los trucos: se elige la lista, se pega una
+  línea por archivo (`nombre; detalle`), se ve la vista previa y se confirma. Acepta tabulación (Excel), `;` o
+  `|`; si la planilla trae la columna de la lista repetida adelante, se ignora; los repetidos se saltean y al
+  volver a la lista se avisa cuántos se agregaron.
+
+**Base de datos**: no hizo falta cambiar nada. Se reusan las columnas que ya existían: el título guarda el nombre
+de la lista, `subtitle` el nombre del archivo y el contenido el detalle.
+
+**Buscador general del sitio** (`src/lib/search.ts`): cada archivo aparece con su nombre y, debajo, la lista a la
+que pertenece (verificado con datos reales: buscar “debian” devuelve “Debian — Lista de Sistema Operativo”).
+
+**Verificación hecha**
+
+- `npx tsc --noEmit` y `npx eslint .` sin errores; `npm run build:vercel` OK.
+- Con base de prueba: página 200 con dos listas cerradas (7 archivos), copiar nombres por lista, importación de
+  archivos por bloque (guardó nombre, detalle y categoría, y salteó repetidos), trucos siguen funcionando con el
+  importador unificado (`importListAction`), y la hoja de impresión se generó con datos reales.
+- La descarga `.txt`, la impresión y el botón de copiar no se pudieron probar en un navegador real (el entorno no
+  tiene navegador), pero el documento de impresión se generó y revisó con datos de la base.
+
 ---
 
 ## 4. Verificación completa (lo que se midió)

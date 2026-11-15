@@ -1,12 +1,13 @@
 import { plainCheatText, type CheatGame } from "./cheats";
+import type { FileGroup } from "./files";
 
 /**
- * Hoja de impresión de los trucos.
+ * Hojas de impresión (trucos y listas de archivos).
  *
  * ¿Por qué un documento aparte y no imprimir la página tal cual? Porque al imprimir la página del sitio el
- * navegador arrastra todo lo demás (menú, buscador, otros juegos ocultos…) y terminaba generando hojas en
- * blanco. Acá se arma un documento limpio, solo con los trucos, y se manda a imprimir ese: entra en las hojas
- * que tiene que entrar y en el diálogo se elige “Guardar como PDF”.
+ * navegador arrastra todo lo demás (menú, buscador, otros bloques cerrados…) y terminaba generando hojas en
+ * blanco. Acá se arma un documento limpio, solo con lo que se pidió, y se manda a imprimir ese: entra en las
+ * hojas que tiene que entrar y en el diálogo se elige “Guardar como PDF”.
  */
 
 function esc(text: string): string {
@@ -93,12 +94,34 @@ const CSS = `
  * Documento imprimible con uno o varios juegos.
  * `only` deja solo ese juego (lo usa el botón “Imprimir / PDF” de cada cuadro).
  */
+/** Envuelve los bloques en el documento imprimible (encabezado, hoja y pie). */
+function renderSheet(opts: { title: string; siteName?: string; url?: string; note?: string }, blocks: string): string {
+  const today = new Date().toLocaleDateString("es", { day: "numeric", month: "long", year: "numeric" });
+  return `<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${esc(opts.title)}</title>
+<style>${CSS}</style>
+</head>
+<body>
+  <p class="hint">Si el diálogo de impresión no se abrió solo, usá <strong>Ctrl + P</strong> (en el celular: Compartir → Imprimir). Para guardarlo, elegí <strong>Guardar como PDF</strong>.</p>
+  <header class="head">
+    <h1>${esc(opts.title)}</h1>
+    <span class="site">${esc(opts.siteName ?? "")}</span>
+  </header>
+  ${blocks}
+  <p class="foot">${esc(opts.url ?? "")}${opts.note ? ` · ${esc(opts.note)}` : ""} · ${esc(today)}</p>
+</body>
+</html>`;
+}
+
+/** Hoja con los trucos de uno o varios juegos. */
 export function buildCheatSheetHtml(
   games: CheatGame[],
   opts: { title: string; siteName?: string; url?: string; note?: string },
 ): string {
-  const today = new Date().toLocaleDateString("es", { day: "numeric", month: "long", year: "numeric" });
-
   const blocks = games
     .map((g) => {
       const rows = g.rows
@@ -128,25 +151,37 @@ export function buildCheatSheetHtml(
   </section>`;
     })
     .join("\n  ");
+  return renderSheet(opts, blocks);
+}
 
-  return `<!doctype html>
-<html lang="es">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${esc(opts.title)}</title>
-<style>${CSS}</style>
-</head>
-<body>
-  <p class="hint">Si el diálogo de impresión no se abrió solo, usá <strong>Ctrl + P</strong> (en el celular: Compartir → Imprimir). Para guardarlo, elegí <strong>Guardar como PDF</strong>.</p>
-  <header class="head">
-    <h1>${esc(opts.title)}</h1>
-    <span class="site">${esc(opts.siteName ?? "")}</span>
-  </header>
-  ${blocks}
-  <p class="foot">${esc(opts.url ?? "")}${opts.note ? ` · ${esc(opts.note)}` : ""} · ${esc(today)}</p>
-</body>
-</html>`;
+/** Hoja con una o varias listas de archivos. */
+export function buildFileSheetHtml(
+  groups: FileGroup[],
+  opts: { title: string; siteName?: string; url?: string; note?: string },
+): string {
+  const blocks = groups
+    .map((g) => {
+      const rows = g.rows
+        .map(
+          (r) => `<tr>
+      <td class="purpose">${text(r.name)}</td>
+      <td>${text(r.detail)}</td>
+    </tr>`,
+        )
+        .join("\n    ");
+      return `<section class="game">
+    <h2>${esc(g.name)}</h2>
+    <p class="count">${g.rows.length} ${g.rows.length === 1 ? "archivo" : "archivos"}</p>
+    <table>
+      <thead><tr><th>Nombre</th><th>Detalle</th></tr></thead>
+      <tbody>
+    ${rows}
+      </tbody>
+    </table>
+  </section>`;
+    })
+    .join("\n  ");
+  return renderSheet(opts, blocks);
 }
 
 /**
