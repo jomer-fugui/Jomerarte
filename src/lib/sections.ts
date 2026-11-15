@@ -36,6 +36,7 @@ export type Layout =
   | "donations"
   | "games"
   | "cheats"
+  | "files"
   | "custom";
 
 export type GroupKey =
@@ -178,6 +179,24 @@ const CHEAT_FIELDS: SectionDef["fields"] = {
   content: "Detalle del truco (qué incluye, cómo se usa)",
   category: "Categoría (puedes elegir varias)",
 };
+
+/** Lista de archivos: un nombre por fila y su detalle */
+const FILE_FIELDS: SectionDef["fields"] = {
+  title: "Lista o grupo (ej: Lista de juegos para Windows)",
+  subtitle: "Nombre del archivo",
+  content: "Detalle (opcional: para qué sirve, versión, tamaño…)",
+  category: "Categoría (opcional)",
+};
+
+export const FILE_CATEGORIES = [
+  "Juegos",
+  "Programas",
+  "Sistema operativo",
+  "Música",
+  "Videos",
+  "Libros",
+  "Otros",
+];
 
 export const CHEAT_CATEGORIES = [
   "Armas",
@@ -970,6 +989,16 @@ export const PAGE_TYPES: PageTypeDef[] = [
     itemLabel: "truco",
     fields: CHEAT_FIELDS,
     categories: CHEAT_CATEGORIES,
+  },
+  {
+    key: "files",
+    label: "Lista de archivos",
+    description:
+      "Listas desplegables con nombres de archivos y su detalle, agrupadas por lista o carpeta. El visitante puede copiar cada nombre, descargar la lista completa en un archivo de texto o imprimirla / guardarla en PDF.",
+    icon: "list",
+    itemLabel: "archivo",
+    fields: FILE_FIELDS,
+    categories: FILE_CATEGORIES,
   },
   {
     key: "recommend",

@@ -43,9 +43,9 @@ export default async function AdminSectionPage({
   searchParams,
 }: {
   params: Promise<{ key: string }>;
-  searchParams: Promise<{ ok?: string; n?: string; skip?: string }>;
+  searchParams: Promise<{ ok?: string; n?: string; skip?: string; what?: string }>;
 }) {
-  const [{ key }, { ok, n, skip }, site] = await Promise.all([params, searchParams, getCurrentSite()]);
+  const [{ key }, { ok, n, skip, what }, site] = await Promise.all([params, searchParams, getCurrentSite()]);
   // Los subdominios solo tienen páginas personalizadas
   const staticDef = site.isMain || key === "custom" ? getPageDef(key) : undefined;
   // Las páginas principales (Servicios, Tienda…) no tienen lista propia: se editan en su pantalla
@@ -111,9 +111,9 @@ export default async function AdminSectionPage({
               <ExternalLink className="h-4 w-4" /> Ver página
             </Link>
           )}
-          {section?.layout === "cheats" && (
+          {(section?.layout === "cheats" || section?.layout === "files") && (
             <Link href={`/admin/s/${key}/importar`} className="btn-ghost">
-              <Upload className="h-4 w-4" /> Importar trucos
+              <Upload className="h-4 w-4" /> {section.layout === "cheats" ? "Importar trucos" : "Importar archivos"}
             </Link>
           )}
           {section && (
@@ -124,10 +124,10 @@ export default async function AdminSectionPage({
         </div>
       </div>
 
-      {ok === "trucos" && Number(n) > 0 && (
+      {ok === "lista" && Number(n) > 0 && (
         <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-4 text-sm text-emerald-200">
-          Se agregaron {Number(n)} {Number(n) === 1 ? "truco" : "trucos"}.
-          {Number(skip) > 0 && ` Se saltearon ${Number(skip)} que ya estaban cargados en ese juego.`}
+          Se agregaron {Number(n)} {what === "archivo" ? "archivos" : `truco${Number(n) === 1 ? "" : "s"}`}.
+          {Number(skip) > 0 && ` Se saltearon ${Number(skip)} que ya estaban cargados en la misma lista.`}
         </div>
       )}
       {ok && OK[ok] && (
@@ -207,12 +207,15 @@ export default async function AdminSectionPage({
                 const thumb = it.imageUrl ? mediaThumb(it.imageUrl) : null;
                 const publicHref = info ? info.path : section.detail ? itemPath(section.path, it) : section.path;
                 const isCheat = section.layout === "cheats";
+                const isFile = section.layout === "files";
                 const meta = info
                   ? `${info.type.label} · en ${where(info)} · ${info.path}`
                   : isCheat
                     ? [it.code && `Código: ${it.code}`, it.purpose, itemCategories(it).join(", ")].filter(Boolean).join(" · ")
-                    : [itemCategories(it).join(", "), it.subtitle, it.price].filter(Boolean).join(" · ") ||
-                      excerpt(it.content, 90);
+                    : isFile
+                      ? [it.content, itemCategories(it).join(", ")].filter(Boolean).join(" · ")
+                      : [itemCategories(it).join(", "), it.subtitle, it.price].filter(Boolean).join(" · ") ||
+                        excerpt(it.content, 90);
                 return (
                   <li key={it.id} className={cn("flex items-center gap-3 p-3 sm:p-4", !it.published && "opacity-60")}>
                     {canReorder && (
@@ -259,7 +262,9 @@ export default async function AdminSectionPage({
                       <p className="truncate font-semibold text-white hover:text-accent-light">
                         {isCheat
                           ? `${it.title || "(sin juego)"} — ${it.code || "sin código"}`
-                          : it.title || excerpt(it.content, 90) || "(sin título)"}
+                          : isFile
+                            ? `${it.title || "(sin lista)"} — ${it.subtitle || "sin nombre"}`
+                            : it.title || excerpt(it.content, 90) || "(sin título)"}
                       </p>
                       <p className="truncate text-xs text-zinc-500">{meta}</p>
                       <div className="mt-1 flex gap-1.5">

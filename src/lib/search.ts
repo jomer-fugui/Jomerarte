@@ -167,20 +167,25 @@ export async function searchSite(site: SiteContext, rawQuery: string): Promise<S
     }
     group.total += 1;
     group.best = Math.max(group.best, score);
-    // Un truco se muestra como “CÓDIGO · para qué sirve”, con el juego en el texto de abajo
+    // Trucos: “CÓDIGO · para qué sirve”. Archivos: el nombre del archivo, con la lista en el texto de abajo
     const isCheat = sec.def.layout === "cheats";
+    const isFile = sec.def.layout === "files";
     group.hits.push({
       id: String(it.id),
       title: isCheat
         ? [it.code, it.purpose].filter(Boolean).join(" · ") || it.title || excerpt(it.content, 80)
-        : it.title || excerpt(it.content, 80),
+        : isFile
+          ? it.subtitle || it.title || excerpt(it.content, 80)
+          : it.title || excerpt(it.content, 80),
       href,
       image: it.imageUrl,
       icon: sec.def.icon,
       cats,
       snippet: isCheat
         ? [it.title, excerpt(it.content, 120)].filter(Boolean).join(" — ")
-        : excerpt(it.subtitle || it.content, 140),
+        : isFile
+          ? [it.title, excerpt(it.content, 120)].filter(Boolean).join(" — ")
+          : excerpt(it.subtitle || it.content, 140),
       price: it.price,
       score,
     });

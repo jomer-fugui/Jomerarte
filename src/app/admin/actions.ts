@@ -39,6 +39,7 @@ import { isBlobUrl } from "@/lib/storage";
 import { cleanLinks, type ItemLink } from "@/lib/links";
 import { foldText } from "@/lib/format";
 import { parseCheatRows } from "@/lib/cheats";
+import { parseFileRows } from "@/lib/files";
 import { notifyItemChange, notifySearchEngines } from "@/lib/indexnow";
 import { isMlShortLink, isMlUrl, parseMlRef, type MlRef } from "@/lib/ml-ref";
 import { resolveShortLink, syncMlPrices } from "@/lib/mercadolibre";
@@ -300,8 +301,8 @@ export async function saveItemAction(_prev: FormState, formData: FormData): Prom
   redirect(`/admin/s/${section.key}?ok=${id ? "updated" : "created"}`);
 }
 
-/* ───────────── Trucos de juegos: carga de una lista entera */
-export async function importCheatsAction(_prev: FormState, formData: FormData): Promise<FormState> {
+/* ───────────── Trucos y listas de archivos: carga de una lista entera */
+export async function importListAction(_prev: FormState, formData: FormData): Promise<FormState> {
   await requireAdmin();
   const site = await siteFor(formData);
   if (!site) return { error: SITE_MISMATCH };
@@ -309,35 +310,51 @@ export async function importCheatsAction(_prev: FormState, formData: FormData): 
   const found = await getAnySection(key);
   if (!found) return { error: "Sección inválida." };
   const section = found.section;
-  if (section.layout !== "cheats") return { error: "Esta página no es de trucos de juegos." };
+  const isCheats = section.layout === "cheats";
+  if (!isCheats && section.layout !== "files") return { error: "Esta página no es de trucos ni de listas de archivos." };
 
-  const game = str(formData, "game", 500);
-  if (!game) return { error: "Escribe o elige el nombre del juego." };
+  const what = isCheats ? "truco" : "archivo";
+  const group = str(formData, "game", 500);
+  if (!group) return { error: `Escribe o elige el nombre de ${isCheats ? "el juego" : "la lista"}.` };
   const category = str(formData, "category", 160);
-  const rows = parseCheatRows(str(formData, "rows", 200000), game);
+  const raw = str(formData, "rows", 200000);
+
+  const rows: { name: string; detail: string; code: string; purpose: string }[] = isCheats
+    ? parseCheatRows(raw, group).map((r) => ({ name: "", detail: r.detail, code: r.code, purpose: r.purpose }))
+    : parseFileRows(raw, group).map((r) => ({ name: r.name, detail: r.detail, code: "", purpose: "" }));
+
   if (rows.length === 0) {
     return {
-      error:
-        "No se encontró ningún truco. Poné una línea por truco, con el código primero y separado por punto y coma (o pegá directo desde Excel).",
+      error: isCheats
+        ? "No se encontró ningún truco. Poné una línea por truco, con el código primero y separado por punto y coma (o pegá directo desde Excel)."
+        : "No se encontró ningún archivo. Poné una línea por archivo, con el nombre primero y separado por punto y coma (o pegá directo desde Excel).",
     };
   }
-  if (rows.length > 500) return { error: "Son demasiados trucos de una vez (máximo 500). Divide la lista en partes." };
+  if (rows.length > 500) {
+    return { error: `Son demasiados ${what}s de una vez (máximo 500). Divide la lista en partes.` };
+  }
 
-  // Un truco que ya está cargado en ese juego no se vuelve a agregar (así se puede pegar la lista completa de nuevo)
+  // Lo que ya está cargado en esa lista no se vuelve a agregar (así se puede pegar la lista completa de nuevo)
   const existing = await db
-    .select({ code: items.code, purpose: items.purpose, content: items.content })
+    .select({ code: items.code, purpose: items.purpose, content: items.content, subtitle: items.subtitle })
     .from(items)
-    .where(and(eq(items.site, site.slug), eq(items.section, section.key), eq(items.title, game)));
-  const alreadyCodes = new Set(existing.map((e) => foldText(e.code)).filter(Boolean));
+    .where(and(eq(items.site, site.slug), eq(items.section, section.key), eq(items.title, group)));
+  const already = new Set(
+    existing
+      .filter((e) => (isCheats ? e.code.trim() : e.subtitle.trim()))
+      .map((e) => foldText(isCheats ? e.code : e.subtitle)),
+  );
   const alreadyNotes = new Set(
     existing.filter((e) => !e.code.trim()).map((e) => foldText(`${e.purpose}|${e.content}`)),
   );
-  const fresh = rows.filter((r) =>
-    r.code ? !alreadyCodes.has(foldText(r.code)) : !alreadyNotes.has(foldText(`${r.purpose}|${r.detail}`)),
-  );
+  const fresh = isCheats
+    ? rows.filter((r) => (r.code ? !already.has(foldText(r.code)) : !alreadyNotes.has(foldText(`${r.purpose}|${r.detail}`))))
+    : rows.filter((r) => !already.has(foldText(r.name)));
   const skipped = rows.length - fresh.length;
   if (fresh.length === 0) {
-    return { error: "Esos trucos ya están cargados en este juego. Si querés cambiarlos, editalos uno por uno." };
+    return {
+      error: `Esos ${what}s ya están cargados en ${isCheats ? "este juego" : "esta lista"}. Si querés cambiarlos, editalos uno por uno.`,
+    };
   }
 
   const [last] = await db
@@ -354,7 +371,8 @@ export async function importCheatsAction(_prev: FormState, formData: FormData): 
       fresh.map((r, i) => ({
         site: site.slug,
         section: section.key,
-        title: game,
+        title: group,
+        subtitle: isCheats ? "" : r.name,
         code: r.code,
         purpose: r.purpose,
         content: r.detail,
@@ -366,8 +384,8 @@ export async function importCheatsAction(_prev: FormState, formData: FormData): 
     )
     .returning({ id: items.id });
   refresh();
-  if (created[0]) await notifyItemChange({ id: created[0].id, site: site.slug, section: section.key, title: game });
-  redirect(`/admin/s/${section.key}?ok=trucos&n=${fresh.length}${skipped > 0 ? `&skip=${skipped}` : ""}`);
+  if (created[0]) await notifyItemChange({ id: created[0].id, site: site.slug, section: section.key, title: group });
+  redirect(`/admin/s/${section.key}?ok=lista&n=${fresh.length}&what=${what}${skipped > 0 ? `&skip=${skipped}` : ""}`);
 }
 
 /* ───────────── Páginas personalizadas (tipo + ubicación en el menú) */
