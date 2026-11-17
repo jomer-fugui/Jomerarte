@@ -305,6 +305,50 @@ que pertenece (verificado con datos reales: buscar “debian” devuelve “Debi
 - La descarga `.txt`, la impresión y el botón de copiar no se pudieron probar en un navegador real (el entorno no
   tiene navegador), pero el documento de impresión se generó y revisó con datos de la base.
 
+### 3.11 Opiniones (reseñas de Google + comentarios privados)
+
+Página **“Opiniones”** (`/Opiniones`, sección “Más” del menú) para que los clientes cuenten cómo les fue con el
+servicio. También está disponible como **tipo de página** en “Crear página nueva”, así que se puede usar en el
+sitio principal o en cualquier subdominio.
+
+**Lo importante de cómo funciona Google**: la reseña pública **sí o sí se escribe en Google**, no en el sitio.
+Google no permite que otra página publique reseñas en nombre de un cliente. Por eso la página hace tres cosas:
+
+1. **Invita a dejar la reseña en Google.** Botón grande que abre la ventanita de las estrellas de la ficha
+   (`https://g.page/r/…/review`, el enlace que da “Pedir reseñas” en business.google.com), con los pasos
+   explicados y el enlace a la ficha en Google Maps. Incluye un **código QR** del mismo enlace para imprimir y
+   pegar en el taller o mostrarlo desde el celular, con botón para descargarlo (`/api/qr`, SVG).
+2. **Muestra las reseñas de Google** (opcional). Con el **Place ID** y una **clave de Google Maps (Places API)**
+   cargados en Ajustes, se ve el promedio, la cantidad de reseñas y **hasta 5 comentarios** con el nombre y la foto
+   del autor, cada uno con enlace a Google (es el máximo que permite Google; se guardan en caché 6 horas). Si
+   falta la clave o Google no responde, la página sigue funcionando sin esa sección, sin errores.
+3. **Formulario privado** para quien no tiene cuenta de Google: nombre (opcional), email o WhatsApp (opcional),
+   estrellas y mensaje. El comentario **no se publica**: queda guardado y se lee en **Panel → Opiniones**, con
+   aviso de los que están sin leer. Tiene freno de spam (campo trampa invisible y límite de envíos seguidos).
+
+**Dónde se configura (sin tocar código)**: *Ajustes → Opiniones y reseñas de Google*, con el enlace de “Pedir
+reseñas”, el Place ID y la clave de Google Maps (los dos últimos opcionales).
+
+**Panel → Opiniones**: listado de los comentarios recibidos (con estrellas, fecha y datos de contacto para
+responder), marcar como leído o nuevo y borrar. La pantalla de la sección explica que esta página no se carga a
+mano y lleva directo a los ajustes y a los comentarios.
+
+**Base de datos**: tabla nueva `feedback` (migración automática v10), con el comentario, el contacto, las
+estrellas, el sitio y la fecha. No se mezcla con el contenido público.
+
+**Verificación hecha**
+
+- `npx tsc --noEmit` y `npx eslint .` sin errores; `npm run build:vercel` OK.
+- Página 200 con el botón a Google, el QR, el enlace a Maps y el formulario; `/api/qr` devuelve el SVG.
+- Envío real del formulario: se guardó el comentario (nombre, contacto, 4 estrellas, mensaje y página de origen) y
+  aparece en el panel como “sin leer”. El campo trampa frena el envío automático (no guardó nada).
+- Marcar como leído y borrar: probados contra la base (cambian el estado y borran la fila).
+- Los ajustes nuevos se guardan y se leen (el enlace cargado aparece en el sitio y en el QR).
+- Sin clave de Google: la página se genera igual y la sección de reseñas no aparece. Se probó aparte el código
+  que arma los enlaces y el que pide las reseñas a Google con una clave inválida: devuelve “sin datos” sin romper.
+- Falta probar en un navegador real el clic del botón, la descarga del QR y el envío desde el celular (el entorno
+  no tiene navegador), y **no se pudo probar con una ficha de Google real** (requiere la clave de Google Cloud).
+
 ---
 
 ## 4. Verificación completa (lo que se midió)

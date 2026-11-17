@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { ExternalLink, Globe, Image as ImageIcon, LayoutDashboard, ListOrdered, LogOut, Search, Settings, Tag } from "lucide-react";
+import { ExternalLink, Globe, Image as ImageIcon, LayoutDashboard, ListOrdered, LogOut, Search, Settings, Star, Tag } from "lucide-react";
 import { requireAdmin } from "@/lib/auth";
 import { getSettings } from "@/lib/data";
+import { countUnreadFeedback } from "@/lib/feedback";
 import { siteLabel } from "@/lib/hosts";
 import { getCurrentSite, getSitesOverview } from "@/lib/site";
 import { SiteLogo } from "@/components/Logo";
@@ -15,6 +16,7 @@ export const metadata: Metadata = { title: "Panel de administración", robots: {
 export default async function PanelLayout({ children }: { children: ReactNode }) {
   await requireAdmin();
   const [settings, site, overview] = await Promise.all([getSettings(), getCurrentSite(), getSitesOverview()]);
+  const unread = await countUnreadFeedback(site.slug);
   const accent = /^#[0-9a-f]{3,8}$/i.test(settings.accentColor) ? settings.accentColor : "#b3121f";
 
   return (
@@ -43,6 +45,13 @@ export default async function PanelLayout({ children }: { children: ReactNode })
             <Link href="/admin/ajustes" className="navlink inline-flex items-center gap-1.5" title="Ajustes y logo">
               <Settings className="h-4 w-4" />
               <span className="hidden md:inline">Ajustes</span>
+            </Link>
+            <Link href="/admin/opiniones" className="navlink hidden items-center gap-1.5 sm:inline-flex" title="Opiniones">
+              <Star className="h-4 w-4" />
+              <span className="hidden lg:inline">Opiniones</span>
+              {unread > 0 && (
+                <span className="rounded-full bg-accent px-1.5 text-[10px] font-bold text-white">{unread}</span>
+              )}
             </Link>
             <Link href="/admin/medios" className="navlink hidden items-center gap-1.5 sm:inline-flex" title="Archivos">
               <ImageIcon className="h-4 w-4" />

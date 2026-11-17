@@ -106,6 +106,30 @@ export const settings = pgTable(
 );
 
 /**
+ * Comentarios que dejan los visitantes en la página de opiniones. Son privados: los ve solo el
+ * dueño del sitio en el panel (las reseñas públicas se escriben en Google, no acá).
+ */
+export const feedback = pgTable(
+  "feedback",
+  {
+    id: serial("id").primaryKey(),
+    /** "" = sitio principal; si no, el subdominio */
+    site: varchar("site", { length: 63 }).notNull().default(""),
+    name: text("name").notNull().default(""),
+    /** Email o WhatsApp, para poder responderle */
+    contact: text("contact").notNull().default(""),
+    /** Estrellas de 1 a 5 (0 = no eligió) */
+    rating: integer("rating").notNull().default(0),
+    message: text("message").notNull().default(""),
+    /** Página desde donde lo dejó (ej: /Opiniones) */
+    origin: text("origin").notNull().default(""),
+    read: boolean("read").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("feedback_site_idx").on(t.site, t.createdAt)],
+);
+
+/**
  * Archivos subidos (fotos, videos, audios, PDF). Se comparten entre todos los sitios.
  *  - Con Vercel Blob: se guarda solo la dirección pública en `url`.
  *  - Sin Blob: el archivo se guarda dentro de la base en `data`.

@@ -13,8 +13,9 @@ import { ensureLegacySubsites } from "./sites";
  *  v7: orden del menú, edición de páginas predeterminadas y orden/estilo de las categorías.
  *  v8: los robots que solo entrenan modelos de IA quedan bloqueados (los asistentes siguen entrando).
  *  v9: trucos de juegos (código del truco y para qué sirve).
+ *  v10: comentarios privados de la página de opiniones.
  */
-const SCHEMA_VERSION = "9";
+const SCHEMA_VERSION = "10";
 
 const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS "sites" (
@@ -104,6 +105,18 @@ BEGIN
     ALTER TABLE "settings" ADD CONSTRAINT "settings_site_key_pk" PRIMARY KEY ("site", "key");
   END IF;
 END $$;
+CREATE TABLE IF NOT EXISTS "feedback" (
+  "id" serial PRIMARY KEY NOT NULL,
+  "site" varchar(63) DEFAULT '' NOT NULL,
+  "name" text DEFAULT '' NOT NULL,
+  "contact" text DEFAULT '' NOT NULL,
+  "rating" integer DEFAULT 0 NOT NULL,
+  "message" text DEFAULT '' NOT NULL,
+  "origin" text DEFAULT '' NOT NULL,
+  "read" boolean DEFAULT false NOT NULL,
+  "created_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+CREATE INDEX IF NOT EXISTS "feedback_site_idx" ON "feedback" ("site", "created_at");
 CREATE TABLE IF NOT EXISTS "media" (
   "id" serial PRIMARY KEY NOT NULL,
   "filename" text NOT NULL,
