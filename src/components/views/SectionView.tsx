@@ -512,7 +512,7 @@ function QuotesWall(props: ViewProps) {
       noun="frases"
       placeholder="Buscar frase o categoría…"
       render={(it) => {
-        const share = `“${it.content}” — Frases de un Hereje · jomerarte.com`;
+        const share = `“${it.content}” — Frases de un Hereje · frases.jomerarte.com`;
         return (
           <figure className="card relative mb-5 break-inside-avoid overflow-hidden p-6">
             <Quote className="h-8 w-8 text-accent" />
