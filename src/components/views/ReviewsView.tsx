@@ -3,7 +3,7 @@ import QRCode from "qrcode";
 import { ArrowUpRight, ExternalLink, Info, QrCode, Star } from "lucide-react";
 import { FeedbackForm } from "@/components/FeedbackForm";
 import type { Settings } from "@/lib/defaults";
-import { fetchGoogleSummary, googleMapsUrl, googleReviewUrl } from "@/lib/reviews";
+import { fetchGoogleSummary, googleMapsUrl, googleReviewUrl, hasGoogleMapsLink } from "@/lib/reviews";
 import type { GoogleSummary } from "@/lib/reviews";
 import { cn } from "@/lib/format";
 
@@ -94,6 +94,7 @@ function GoogleBlock({ summary }: { summary: GoogleSummary }) {
  */
 export async function ReviewsView({ settings, admin, path }: { settings: Settings; admin?: boolean; path: string }) {
   const reviewUrl = googleReviewUrl(settings);
+  const showMaps = hasGoogleMapsLink(settings);
   const summary = await fetchGoogleSummary(settings);
   const qrSvg = reviewUrl
     ? await QRCode.toString(reviewUrl, { type: "svg", margin: 0, width: 220, errorCorrectionLevel: "M" })
@@ -129,9 +130,11 @@ export async function ReviewsView({ settings, admin, path }: { settings: Setting
               <a href={reviewUrl} target="_blank" rel="noopener noreferrer" className="btn-primary">
                 <Star className="h-4 w-4" /> Escribir mi reseña en Google
               </a>
-              <a href={googleMapsUrl(settings)} target="_blank" rel="noopener noreferrer" className="btn-ghost">
-                Ver mi ficha en Google Maps
-              </a>
+              {showMaps && (
+                <a href={googleMapsUrl(settings)} target="_blank" rel="noopener noreferrer" className="btn-ghost">
+                  Ver mi ficha en Google Maps
+                </a>
+              )}
             </div>
           </div>
 

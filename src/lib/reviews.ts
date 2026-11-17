@@ -32,10 +32,18 @@ export function googleReviewUrl(settings: Pick<Settings, "googleReviewUrl" | "go
 }
 
 /** Enlace público de la ficha (para “ver todas las reseñas”). */
-export function googleMapsUrl(settings: Pick<Settings, "googlePlaceId" | "siteName">): string {
+export function googleMapsUrl(settings: Pick<Settings, "googlePlaceId" | "siteName" | "mapsUrl">): string {
   const placeId = settings.googlePlaceId.trim();
   if (placeId) return `https://www.google.com/maps/place/?q=place_id:${encodeURIComponent(placeId)}`;
+  // El enlace de Google Maps que se carga en Ajustes → Ubicación es más confiable que buscar por nombre
+  const maps = settings.mapsUrl.trim();
+  if (maps) return maps;
   return `https://www.google.com/maps/search/${encodeURIComponent(settings.siteName)}`;
+}
+
+/** ¿Hay un enlace confiable a la ficha de Google? (Place ID o el Maps cargado en Ajustes) */
+export function hasGoogleMapsLink(settings: Pick<Settings, "googlePlaceId" | "mapsUrl">): boolean {
+  return Boolean(settings.googlePlaceId.trim() || settings.mapsUrl.trim());
 }
 
 type PlacesResponse = {

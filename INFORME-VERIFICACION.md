@@ -329,6 +329,12 @@ Google no permite que otra página publique reseñas en nombre de un cliente. Po
 **Dónde se configura (sin tocar código)**: *Ajustes → Opiniones y reseñas de Google*, con el enlace de “Pedir
 reseñas”, el Place ID y la clave de Google Maps (los dos últimos opcionales).
 
+**Cargado por defecto**: el enlace de “Pedir reseñas” de la ficha de Electricista Jomer
+(`https://g.page/r/CUO6UcAcdBTSEBM/review`), comprobado contra Google: abre la ficha con 5,0 y 2 reseñas. Se
+puede cambiar o vaciar desde Ajustes. El botón “Ver mi ficha en Google Maps” aparece solo si hay Place ID o el
+enlace de Maps cargado en Ajustes → Ubicación (si no, se muestra únicamente el de la reseña, para no mandar a
+cualquier lado).
+
 **Panel → Opiniones**: listado de los comentarios recibidos (con estrellas, fecha y datos de contacto para
 responder), marcar como leído o nuevo y borrar. La pantalla de la sección explica que esta página no se carga a
 mano y lleva directo a los ajustes y a los comentarios.

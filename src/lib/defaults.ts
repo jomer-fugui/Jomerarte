@@ -53,7 +53,8 @@ export const DEFAULT_SETTINGS = {
   openingHours: "",
   priceRange: "",
   /* Opiniones: reseñas de Google y comentarios privados */
-  googleReviewUrl: "",
+  // Enlace de “Pedir reseñas” de la ficha de Google de Electricista Jomer
+  googleReviewUrl: "https://g.page/r/CUO6UcAcdBTSEBM/review",
   googlePlaceId: "",
   googlePlacesKey: "",
   /* Google e inteligencia artificial */
