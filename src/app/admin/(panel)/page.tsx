@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { EyeOff, Globe, Image as ImageIcon, ListOrdered, Plus, Search, Settings, Sparkles, Tag, Upload, type LucideIcon } from "lucide-react";
+import { EyeOff, Globe, Image as ImageIcon, ListOrdered, Plus, Search, Settings, Sparkles, Star, Tag, Upload, type LucideIcon } from "lucide-react";
 import { getMenuModel, getSectionCounts, getSettings } from "@/lib/data";
 import { getMlConfig } from "@/lib/mercadolibre";
+import { countUnreadFeedback } from "@/lib/feedback";
 import { getCurrentSite, getSiteSlugs } from "@/lib/site";
 import { Icon } from "@/components/icons";
 import { SubsiteDashboard } from "@/components/admin/SubsiteDashboard";
@@ -25,12 +26,13 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
   // Cada subdominio tiene su propio panel
   if (!site.isMain) return <SubsiteDashboard site={site} ok={ok} />;
 
-  const [counts, settings, menu, subsites, mlCfg] = await Promise.all([
+  const [counts, settings, menu, subsites, mlCfg, unread] = await Promise.all([
     getSectionCounts(),
     getSettings(),
     getMenuModel(),
     getSiteSlugs(),
     getMlConfig(),
+    countUnreadFeedback(site.slug),
   ]);
   const noLogo = !settings.logoUrl && !settings.logoLightUrl;
 
@@ -65,6 +67,12 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
         <QuickCard href="/admin/ajustes" icon={Settings} title="Ajustes y portada" text="Logo, colores, WhatsApp, redes, textos del inicio" />
         <QuickCard href="/admin/menu" icon={ListOrdered} title="Menú y orden" text="Ordena secciones y páginas, renómbralas o muévelas" />
         <QuickCard href="/admin/s/custom/nuevo" icon={Sparkles} title="Crear página nueva" text="Elige su tipo y en qué sección del menú va" />
+        <QuickCard
+          href="/admin/opiniones"
+          icon={Star}
+          title="Opiniones"
+          text={unread > 0 ? `${unread} sin leer · reseñas de Google y comentarios` : "Reseñas de Google y comentarios privados"}
+        />
         <QuickCard href="/admin/medios" icon={ImageIcon} title="Archivos subidos" text="Fotos, videos y audios" />
         <QuickCard
           href="/admin/sitios"

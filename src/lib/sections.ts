@@ -37,6 +37,7 @@ export type Layout =
   | "games"
   | "cheats"
   | "files"
+  | "reviews"
   | "custom";
 
 export type GroupKey =
@@ -654,6 +655,19 @@ export const SECTIONS: SectionDef[] = [
   },
   // ───────────── Más
   {
+    key: "opiniones",
+    path: "/Opiniones",
+    group: "mas",
+    navLabel: "Opiniones",
+    title: "Opiniones",
+    intro:
+      "¿Cómo te fue con mi trabajo? Dejá tu reseña en Google (así la ven todos) o contame por privado qué te pareció el servicio.",
+    layout: "reviews",
+    icon: "star",
+    itemLabel: "opinión",
+    fields: {},
+  },
+  {
     key: "mis-paginas",
     path: "/MisPaginas",
     group: "mas",
@@ -967,6 +981,15 @@ export const PAGE_TYPES: PageTypeDef[] = [
     description: "Texto con formato, imagen, galería de fotos y videos y un botón. Ideal para Contacto, Sobre mí o Trabajos realizados.",
     icon: "file",
     itemLabel: "",
+    fields: {},
+  },
+  {
+    key: "reviews",
+    label: "Opiniones",
+    description:
+      "Página para que tus clientes dejen la reseña en tu ficha de Google (con botón y código QR para imprimir) y, si no tienen cuenta de Google, te cuenten por privado cómo les fue. El enlace de “Pedir reseñas” se carga en Ajustes → Opiniones.",
+    icon: "star",
+    itemLabel: "opinión",
     fields: {},
   },
   {

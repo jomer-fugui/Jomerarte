@@ -52,6 +52,10 @@ export const DEFAULT_SETTINGS = {
   longitude: "",
   openingHours: "",
   priceRange: "",
+  /* Opiniones: reseñas de Google y comentarios privados */
+  googleReviewUrl: "",
+  googlePlaceId: "",
+  googlePlacesKey: "",
   /* Google e inteligencia artificial */
   seoTitle: "",
   seoDescription: "",
@@ -158,6 +162,35 @@ export const SETTINGS_GROUPS: SettingsGroup[] = [
         label: "Horario de atención (texto que se muestra)",
         type: "text",
         hint: "Si lo dejas vacío, se arma solo con los horarios de “Ubicación y zona de trabajo”.",
+      },
+    ],
+  },
+  {
+    id: "opiniones",
+    title: "Opiniones y reseñas de Google",
+    description:
+      "La página de opiniones invita a tus clientes a dejar la reseña en tu ficha de Google y, además, les permite contarte por privado cómo les fue (esos comentarios los ves solo vos, en el panel).",
+    fields: [
+      {
+        key: "googleReviewUrl",
+        label: "Enlace para dejar la reseña en Google",
+        type: "text",
+        hint:
+          "Entrá a business.google.com con la cuenta que administra tu ficha, tocá “Pedir reseñas” y copiá el enlace (empieza con https://g.page/r/…). Ese enlace abre la ventanita de las 5 estrellas directamente en tu negocio.",
+      },
+      {
+        key: "googlePlaceId",
+        label: "Place ID de tu ficha (opcional)",
+        type: "text",
+        hint:
+          "Sirve para dos cosas: armar el enlace de reseña si dejaste vacío el anterior, y traer tus reseñas a la página. Lo encontrás en el buscador de Place ID de Google (developers.google.com/maps/documentation/places/web-service/place-id).",
+      },
+      {
+        key: "googlePlacesKey",
+        label: "Clave de Google Maps (opcional)",
+        type: "text",
+        hint:
+          "Solo si querés que tus últimas reseñas de Google se vean dentro de la página. Se saca en Google Cloud (Places API) y muestra como máximo 5 reseñas. Si la dejás vacía, la página funciona igual: solo invita a opinar en Google.",
       },
     ],
   },

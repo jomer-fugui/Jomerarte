@@ -24,6 +24,7 @@ import { cn, excerpt, foldText, formatDate, itemCategories, slugify } from "@/li
 import { buildNote, type CheatGame } from "@/lib/cheats";
 import type { FileGroup } from "@/lib/files";
 import { FileLists } from "./FileLists";
+import { ReviewsView } from "./ReviewsView";
 import { getPlatform } from "@/lib/platforms";
 import { formatMoney, mlDiscountPercent, mlStatusLabel } from "@/lib/ml-ref";
 import { CopyButton, Gallery, PrintButton } from "../client";
@@ -151,6 +152,10 @@ function CategoryLinks({ section, item, max = 99, small = false }: { section: Se
 
 export function SectionBody(props: ViewProps) {
   const { section, items, admin } = props;
+  // La página de opiniones no tiene publicaciones: se arma con la ficha de Google y el formulario
+  if (section.layout === "reviews") {
+    return <ReviewsView settings={props.settings} admin={admin} path={section.path} />;
+  }
   if (items.length === 0) {
     return <EmptyState label={section.itemLabel} adminHref={admin ? `/admin/s/${section.key}/nuevo` : undefined} />;
   }

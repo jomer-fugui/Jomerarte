@@ -7,7 +7,7 @@ import { redirect } from "next/navigation";
 import { and, asc, desc, eq } from "drizzle-orm";
 import { del } from "@vercel/blob";
 import { db } from "@/db";
-import { items, media, pages, settings } from "@/db/schema";
+import { feedback, items, media, pages, settings } from "@/db/schema";
 import {
   checkPassword,
   createSession,
@@ -386,6 +386,26 @@ export async function importListAction(_prev: FormState, formData: FormData): Pr
   refresh();
   if (created[0]) await notifyItemChange({ id: created[0].id, site: site.slug, section: section.key, title: group });
   redirect(`/admin/s/${section.key}?ok=lista&n=${fresh.length}&what=${what}${skipped > 0 ? `&skip=${skipped}` : ""}`);
+}
+
+/* ───────────── Opiniones: comentarios privados que dejan los visitantes */
+export async function toggleFeedbackReadAction(formData: FormData) {
+  await requireAdmin();
+  const id = Number(str(formData, "id", 20));
+  if (id) {
+    const [row] = await db.select({ read: feedback.read }).from(feedback).where(eq(feedback.id, id)).limit(1);
+    if (row) await db.update(feedback).set({ read: !row.read }).where(eq(feedback.id, id));
+  }
+  refresh();
+  redirect("/admin/opiniones");
+}
+
+export async function deleteFeedbackAction(formData: FormData) {
+  await requireAdmin();
+  const id = Number(str(formData, "id", 20));
+  if (id) await db.delete(feedback).where(eq(feedback.id, id));
+  refresh();
+  redirect("/admin/opiniones");
 }
 
 /* ───────────── Páginas personalizadas (tipo + ubicación en el menú) */

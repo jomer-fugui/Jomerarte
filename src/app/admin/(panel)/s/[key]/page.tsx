@@ -20,6 +20,7 @@ import { cn, excerpt, itemCategories, mediaThumb } from "@/lib/format";
 import { findMenuGroup } from "@/lib/nav";
 import { getPageDef, groupLabel, type PageDef } from "@/lib/sections";
 import { getCurrentSite } from "@/lib/site";
+import { countUnreadFeedback } from "@/lib/feedback";
 import { ConfirmButton } from "@/components/client";
 import { Icon } from "@/components/icons";
 import { CategorySettings } from "@/components/admin/CategorySettings";
@@ -56,10 +57,11 @@ export default async function AdminSectionPage({
   const custom = found?.custom;
   const isCustomList = key === "custom";
 
-  const [pages, customs, menu] = await Promise.all([
+  const [pages, customs, menu, unread] = await Promise.all([
     getPageTexts(),
     isCustomList ? getCustomSections() : Promise.resolve<CustomSection[]>([]),
     getMenuModel(),
+    countUnreadFeedback(site.slug),
   ]);
   const text = pages[key];
   const navLabel = text?.navLabel ?? def.navLabel;
@@ -77,6 +79,8 @@ export default async function AdminSectionPage({
       ? `${custom.path} · ${custom.type.label} · en ${where(custom)}`
       : def.path;
   const isFixed = Boolean(staticDef) && !isCustomList;
+  /** La página de opiniones no tiene publicaciones: se arma con Google y los comentarios privados */
+  const isReviews = section?.layout === "reviews";
   const fixedGroup = isFixed ? findMenuGroup(menu, key) : null;
   // En el sitio principal, el orden de las páginas nuevas se cambia en “Menú y orden” (junto con las predeterminadas)
   const canReorder = !(isCustomList && site.isMain);
@@ -116,7 +120,7 @@ export default async function AdminSectionPage({
               <Upload className="h-4 w-4" /> {section.layout === "cheats" ? "Importar trucos" : "Importar archivos"}
             </Link>
           )}
-          {section && (
+          {section && !isReviews && (
             <Link href={addHref} className="btn-primary">
               <Plus className="h-4 w-4" /> {isCustomList ? "Crear página" : `Agregar ${section.itemLabel}`}
             </Link>
@@ -175,6 +179,35 @@ export default async function AdminSectionPage({
         </section>
       )}
 
+      {isReviews && (
+        <section className="card space-y-4 p-5">
+          <div>
+            <p className="font-display text-lg font-bold tracking-wide text-white uppercase">Cómo funciona esta página</p>
+            <p className="mt-1 text-sm text-zinc-400">
+              No se carga a mano: invita a tus clientes a dejar la reseña en tu ficha de Google (con botón y código QR para
+              imprimir) y muestra tus reseñas de Google si cargaste la clave. Además, quien no tiene cuenta de Google puede
+              dejarte un comentario privado, que aparece acá abajo.
+            </p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Link href="/admin/opiniones" className="card card-hover flex items-center gap-3 p-4 text-sm text-zinc-300">
+              <Star className="h-5 w-5 shrink-0 text-accent-light" />
+              <span>
+                <strong className="block text-white">Comentarios recibidos</strong>
+                {unread > 0 ? `${unread} sin leer` : "Leer lo que dejaron los clientes"}
+              </span>
+            </Link>
+            <Link href="/admin/ajustes#opiniones" className="card card-hover flex items-center gap-3 p-4 text-sm text-zinc-300">
+              <Settings2 className="h-5 w-5 shrink-0 text-accent-light" />
+              <span>
+                <strong className="block text-white">Enlace de reseñas y Google</strong>
+                Pegar el enlace de “Pedir reseñas” y, si querés, el Place ID
+              </span>
+            </Link>
+          </div>
+        </section>
+      )}
+
       {section?.layout === "products" && (
         <Link href="/admin/mercadolibre" className="card card-hover flex flex-wrap items-center gap-3 p-4 text-sm text-zinc-300">
           <span className="rounded bg-[#FFE600] px-1.5 py-0.5 text-[10px] font-extrabold text-[#2D3277]">ML</span>
@@ -190,7 +223,7 @@ export default async function AdminSectionPage({
         <CategorySettings sectionKey={key} site={site.slug} categories={catList} options={text?.options ?? {}} />
       )}
 
-      {section && (
+      {section && !isReviews && (
         <section className="card overflow-hidden">
           {list.length === 0 ? (
             <div className="p-10 text-center text-zinc-400">
