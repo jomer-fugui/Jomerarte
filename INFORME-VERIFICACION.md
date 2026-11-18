@@ -355,6 +355,49 @@ estrellas, el sitio y la fecha. No se mezcla con el contenido público.
 - Falta probar en un navegador real el clic del botón, la descarga del QR y el envío desde el celular (el entorno
   no tiene navegador), y **no se pudo probar con una ficha de Google real** (requiere la clave de Google Cloud).
 
+### 3.12 Despliegue en un VPS (Hostinger + Coolify)
+
+Para no depender de la cuota de Vercel (la cuenta se pausó al 105 % de “Fluid Active CPU”) el repositorio quedó
+listo para correr en un servidor propio. La guía completa, paso a paso, está en
+**`docs/MIGRACION-HOSTINGER.md`**.
+
+**Qué se agregó**
+
+- `Dockerfile` de tres etapas (dependencias → compilación → imagen final) con `output: standalone`: la imagen
+  corre sola con `node server.js`, sin `node_modules` de desarrollo, con usuario sin privilegios y un
+  `HEALTHCHECK` contra `/api/health` (Coolify lo muestra en el panel).
+- `.dockerignore` y `docker-compose.yml` (app + PostgreSQL 17) para probar todo en una computadora o desplegar
+  sin Coolify.
+- `next.config.ts`: la opción `standalone` se activa solo con `BUILD_STANDALONE=1` (lo pone el Dockerfile), así el
+  build de Vercel sigue exactamente igual.
+- `scripts/migrar-desde-neon.sh` (trae estructura y datos de Neon a la base nueva) y `scripts/backup-base.sh`
+  (copia diaria con retención), más las tareas programadas equivalentes al cron de `vercel.json`.
+- `.env.example` actualizado para los dos destinos (Vercel y VPS), con la clave de Google Maps documentada.
+
+**Menos consumo de CPU: se cortan los escaneos** (`src/proxy.ts`)
+
+El Firewall de Vercel mostró lo que pasaba: IPs de datacenter pidiendo cientos de veces `wp-login.php`, `.env`,
+`.sql` y demás. Cada una de esas visitas renderizaba una página entera y consultaba la base para responder un 404.
+Ahora el proxy responde un 404 liviano (sin renderizar ni tocar la base) a:
+
+- cualquier dirección con extensión que no sea un archivo real del sitio (`robots.txt`, `sitemap.xml`, `llms.txt`,
+  `manifest.webmanifest`, `icon.svg`, `favicon.ico`, `BingSiteAuth.xml`, `jomer-<clave>.txt`);
+- las carpetas y nombres típicos de escaneo (`/wp-*`, `/xmlrpc.php`, `/phpmyadmin`, `/cgi-bin/`, `/.git`, `/.env`,
+  `/administrator`, `/actuator`, `/vendor/`, respaldos, etc.).
+
+Los desafíos de certificado (`/.well-known/acme-challenge/…`) y las direcciones de `/api` pasan siempre.
+
+**Verificación hecha**
+
+- `npx tsc --noEmit` y `npx eslint .` sin errores.
+- `BUILD_STANDALONE=1 npx next build` genera `.next/standalone`; armando la imagen a mano (standalone + `public` +
+  `.next/static`) y corriendo `node server.js` con PostgreSQL: `/api/health`, `/`, `/Servicios`, `/Opiniones`,
+  `/robots.txt`, `/sitemap.xml` y `/admin/login` responden 200, y `/wp-login.php`, `/.env`, `/backup.sql`,
+  `/wp-admin/setup.php` responden 404 **sin** tocar la base.
+- `npm run build:vercel` sigue compilando normal, **sin** generar `.next/standalone` (Vercel no cambia).
+- No se pudo probar la imagen Docker real ni Coolify en este entorno (no hay Docker disponible): la guía indica cómo
+  verificarlo en el VPS (`/api/health` y el estado del contenedor).
+
 ---
 
 ## 4. Verificación completa (lo que se midió)
