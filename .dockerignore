@@ -1,0 +1,17 @@
+# Cosas que NO hacen falta dentro de la imagen (la hacen pesada o pisan la compilación)
+node_modules
+.next
+.git
+.github
+.env
+.env.*
+!.env.example
+npm-debug.log*
+*.md
+!README.md
+INFORME-VERIFICACION.md
+REVISION-CODIGO-Y-CPU.md
+docs
+scripts
+coverage
+.DS_Store

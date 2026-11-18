@@ -24,6 +24,25 @@ const STATIC_FILE = /^\/(images\/|icon\.svg$|favicon\.ico$|BingSiteAuth\.xml$)/;
 /** Archivo de verificación de IndexNow (rewrite de next.config.ts). */
 const INDEXNOW_FILE = /^\/jomer-[a-f0-9]{32}\.txt$/;
 
+/**
+ * Escaneos automáticos. Miles de robots piden a diario direcciones que no existen en este sitio
+ * (paneles de WordPress, archivos de configuración, respaldos…). Cada una de esas visitas hacía que
+ * Next renderizara una página entera y consultara la base: eso fue lo que infló el consumo de CPU.
+ * Se cortan acá, antes de tocar la base, con un 404 liviano.
+ */
+const SCANNER =
+  /^(\/wp-|\/wordpress|\/xmlrpc\.php|\/phpmyadmin|\/pma(\/|$)|\/cgi-bin\/|\/vendor\/|\/\.(env|git|aws|ssh|htaccess|ds_store|vscode|idea)|\/administrator|\/admin\.php|\/actuator|\/hnap1|\/owa\/|\/ecp\/|\/boaform|\/manager\/html|\/server-status|\/config\.|\/docker-compose|\/backup|\/dump|\/db\.|\/\.well-known\/(?!acme-challenge))/i;
+/** Archivos que el sitio sí sirve desde la raíz. */
+const KNOWN_FILE =
+  /^\/(robots\.txt|sitemap\.xml|llms\.txt|llms-full\.txt|manifest\.webmanifest|icon\.svg|favicon\.ico|BingSiteAuth\.xml|jomer-[a-f0-9]{32}\.txt)$/i;
+const HAS_EXTENSION = /\.[a-z0-9]{1,6}$/i;
+
+/** ¿Es una dirección de escaneo que no existe en el sitio? (cualquier archivo raro, menos los nuestros) */
+function isJunkPath(pathname: string): boolean {
+  if (SCANNER.test(pathname)) return true;
+  return HAS_EXTENSION.test(pathname) && !KNOWN_FILE.test(pathname);
+}
+
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -40,6 +59,14 @@ export function proxy(request: NextRequest) {
 
   if (pathname.startsWith("/api") || STATIC_FILE.test(pathname) || INDEXNOW_FILE.test(pathname)) {
     return NextResponse.next();
+  }
+
+  // Certificados y verificaciones de dominio (Let's Encrypt y similares): siempre pasan
+  if (pathname.startsWith("/.well-known/acme-challenge/")) return NextResponse.next();
+
+  // Corta los escaneos sin llegar a renderizar ni consultar la base de datos
+  if (isJunkPath(pathname)) {
+    return new NextResponse("No encontrado", { status: 404, headers: { "x-robots-tag": "noindex, nofollow" } });
   }
 
   const host = (request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? "")

@@ -1,0 +1,38 @@
+# Prueba local (o despliegue sin Coolify) con Docker:
+#   docker compose up --build
+# En Coolify conviene crear los recursos por separado (Aplicación + Base de datos),
+# así el panel se encarga del SSL, las copias de seguridad y las actualizaciones.
+
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://jomer:${POSTGRES_PASSWORD:-jomerarte}@db:5432/jomerarte
+      SESSION_SECRET: ${SESSION_SECRET:-cambiame-por-un-texto-largo-y-al-azar}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-clave-de-prueba}
+      CRON_SECRET: ${CRON_SECRET:-}
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
+    ports:
+      - "3000:3000"
+
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: jomer
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-jomerarte}
+      POSTGRES_DB: jomerarte
+    volumes:
+      - datos-base:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jomer -d jomerarte"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  datos-base:

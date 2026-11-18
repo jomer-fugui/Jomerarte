@@ -49,6 +49,10 @@ de arriba. En Mac, pulsa `Cmd + Shift + .` para ver los archivos ocultos (`.giti
 
 ## 2. Publicar en Vercel
 
+> **¿Vas a mudar el sitio a un servidor propio (VPS de Hostinger con Coolify)?** Está todo explicado, paso a paso,
+> en **[`docs/MIGRACION-HOSTINGER.md`](docs/MIGRACION-HOSTINGER.md)**: el repositorio ya trae el `Dockerfile`, la
+> forma de pasar los datos desde Neon y las tareas de copia de seguridad.
+
 ### 2.1 Importar el proyecto
 1. En [vercel.com](https://vercel.com) → **Add New… → Project** → elige tu repositorio de GitHub.
 2. Framework: **Next.js** (se detecta solo). No cambies los comandos de build.
