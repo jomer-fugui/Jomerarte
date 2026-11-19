@@ -303,7 +303,8 @@ export function jsonLdGraph(nodes: (JsonLdNode | null | undefined)[]): JsonLdNod
   return list.length ? { "@context": "https://schema.org", "@graph": list } : null;
 }
 
-function iso(d: Date | string | null | undefined): string | undefined {
+/** Fecha en formato ISO, venga como Date o como texto (los datos en caché llegan serializados). */
+export function isoDate(d: Date | string | null | undefined): string | undefined {
   if (!d) return undefined;
   const t = typeof d === "string" ? new Date(d) : d;
   return Number.isNaN(t.getTime()) ? undefined : t.toISOString();
@@ -559,8 +560,8 @@ export function itemNode(
   const keywords = cats.length ? cats.join(", ") : undefined;
   const author = { "@id": ctx.authorId };
   const publisher = { "@id": ctx.identityId };
-  const published = iso(it.createdAt);
-  const modified = iso(it.updatedAt);
+  const published = isoDate(it.createdAt);
+  const modified = isoDate(it.updatedAt);
   const external = absUrl(ctx.base, safeUrl(it.linkUrl));
   const downloads = (it.links ?? []).map((l) => absUrl(ctx.base, safeUrl(l.url))).filter((u): u is string => Boolean(u));
   const partOf = o.pageTitle ? { "@type": "CreativeWork", name: o.pageTitle } : undefined;
@@ -823,7 +824,7 @@ export function listPageNodes(
 ): JsonLdNode[] {
   const list = o.items.slice(0, 100);
   const newest = o.items.reduce<Date | null>((m, it) => (!m || it.updatedAt > m ? it.updatedAt : m), null);
-  const page = webPageNode(ctx, { url: o.url, name: o.name, description: o.description, image: o.image, dateModified: iso(newest) });
+  const page = webPageNode(ctx, { url: o.url, name: o.name, description: o.description, image: o.image, dateModified: isoDate(newest) });
   const nodes = (fn: (it: Item, i: number) => JsonLdNode | null) => list.map(fn).filter((n): n is JsonLdNode => Boolean(n));
 
   if (o.section.layout === "colmos") {
@@ -897,7 +898,7 @@ export function detailPageNodes(ctx: SeoContext, section: SectionDef, it: Item, 
       name: it.title,
       description: descOf(it),
       image: imagesOf(ctx.base, it)[0],
-      dateModified: iso(it.updatedAt),
+      dateModified: isoDate(it.updatedAt),
     }),
   ];
 }

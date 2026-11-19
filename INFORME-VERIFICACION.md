@@ -1,7 +1,7 @@
 # Informe de correcciones y verificación — Jomerarte
 
 **Fecha:** 5 de noviembre de 2026
-**Rama:** `arena/03f02bbe-jomerarte` (los puntos 3.7-bis y 3.9 son de esta rama)
+**Rama:** `arena/f60be2b3-jomerarte` (los puntos 3.13 y 3.14 son de esta rama; el resto, del historial)
 **Base:** este documento complementa al informe anterior (`REVISION-CODIGO-Y-CPU.md`), que es la **revisión de
 solo lectura** del estado inicial y el diagnóstico del aviso de CPU. Acá está lo que se aplicó y cómo se verificó.
 
@@ -397,6 +397,54 @@ Los desafíos de certificado (`/.well-known/acme-challenge/…`) y las direccion
 - `npm run build:vercel` sigue compilando normal, **sin** generar `.next/standalone` (Vercel no cambia).
 - No se pudo probar la imagen Docker real ni Coolify en este entorno (no hay Docker disponible): la guía indica cómo
   verificarlo en el VPS (`/api/health` y el estado del contenedor).
+
+### 3.13 Formularios (páginas que reciben pedidos)
+
+**Qué se agregó:** un tipo de página nuevo, **“Formulario”**, que se crea desde el panel como cualquier otra página
+y sirve igual en el sitio principal y en los subdominios.
+
+- **Campos editables desde el panel** (`src/components/admin/FormFieldsEditor.tsx`): agregar, ordenar y borrar campos;
+  tipos texto corto, texto largo, email, teléfono, fecha y desplegable; obligatorio u opcional; texto dentro del campo;
+  aclaración debajo; hasta 24 campos.
+- **Desplegable configurable por campo**: toma los servicios del sitio (la sección Servicios del principal, o las
+  páginas tipo “Servicios” en un subdominio) o una lista propia escrita a mano. En los dos casos se puede activar
+  **“Otro (especificar)”**, que muestra un campo de texto y guarda el valor como `Otro: …`.
+- **La definición viaja con la página**: no hay tabla de configuración aparte. Se guarda en la columna `form` del
+  propio registro de `items` (`FormConfig` en `src/lib/form-fields.ts`, validado siempre con `cleanFormConfig`).
+- **Respuestas en el panel**: tabla nueva `form_submissions` (sitio, formulario, página de origen, pares
+  etiqueta/valor, leída y fecha) y pantalla **/admin → Formularios** con filtro por formulario, contador de “sin leer”
+  en el menú y en el tablero, marca de leída y borrado.
+- **Validación del lado del servidor** (`submitFormAction` en `src/app/actions.ts`): vuelve a leer la definición de la
+  base (no confía en lo que manda el navegador), controla obligatorios, formato de email y topes de longitud; guarda las
+  respuestas con su etiqueta para que sigan leyéndose bien aunque después cambien los campos.
+- **Anti-spam invisible**: campo trampa (`website`), espera mínima de 2 segundos por conexión y tope de 20 envíos por
+  minuto y por formulario.
+- **Migración automática**: `SCHEMA_VERSION` pasó de `10` a `11`; en el primer arranque se agrega la columna `form`,
+  se crea `form_submissions` y sus dos índices (`src/lib/seed.ts`). No hay que correr nada a mano.
+
+**Verificación hecha** (build de producción + PostgreSQL 18 real, y también en `next dev`):
+
+| Prueba | Resultado |
+|---|---|
+| Migración en base vacía | esquema en `11`, columna `form` y tabla `form_submissions` creadas solas |
+| Página de formulario en el sitio principal (`/Servicios/Presupuesto`) | **200**, con los 6 campos y las opciones de servicios tomadas de la sección Servicios |
+| Envío completo | **200** con el mensaje de gracias propio; fila guardada con los 6 pares etiqueta/valor |
+| Desplegable con “Otro” | se guardó como `Otro: Quilmes` |
+| Falta un campo obligatorio | mensaje `Falta completar “Tu nombre”` y **no** se guarda nada |
+| Campo trampa completo (bot) | muestra el mensaje de gracias y **no** guarda nada |
+| Desplegable con lista propia y email | opciones propias en la página; el guardado desde el panel persiste `submitLabel`, campos y opciones |
+| Crear la página desde el panel y abrirla enseguida | **200** en el sitio (la invalidación de caché funciona) |
+| Formulario en un subdominio (`frases.jomerarte.com/ContactoFrases`) | **200** y el envío se guarda con `site = 'frases'` |
+| `/admin/formularios` | lista las respuestas con nombre, etiquetas, “Otro: Quilmes”, botones de leída y borrar |
+| `/admin/s/c140` (pantalla del formulario) | tarjeta “Cómo funciona este formulario” + accesos a editar y a las respuestas, sin botón “Agregar” |
+| `/admin/s/custom/140` (editor) | los 6 campos cargados, con tipo, desplegable, mensajes y el JSON que se guarda |
+
+### 3.14 Error 500 en las páginas creadas desde el panel (arreglado de paso)
+
+Al probar el formulario apareció el error que ya existía en `/SobreMi`: **`a.updatedAt.toISOString is not a function`**.
+La causa: los datos de las páginas nuevas salen de `unstable_cache`, que **serializa** los objetos y convierte las fechas
+en texto; el JSON-LD (`dateModified`) las trataba como `Date`. Ahora se usa `isoDate()` (`src/lib/seo.ts`), que acepta
+`Date` o texto. **`/SobreMi` y cualquier “página libre” creada desde el panel responden 200** en el build de producción.
 
 ---
 

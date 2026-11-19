@@ -161,11 +161,29 @@ En **/admin → Crear página nueva** (o con “+ Página nueva aquí” en cada
 2. Elige **dónde ubicarla** en el menú: Servicios, Tienda, Recomendaciones, No recomendable, Frases, CielInfier o Más.
    La dirección se arma sola: *Emprendedores* en Recomendaciones → `jomerarte.com/Recomendacion/Emprendedores`;
    *Seguridad* en Tienda → `jomerarte.com/Tienda/Seguridad`.
-3. Elige el **tipo de página**: libre (texto, fotos y videos), recomendaciones, productos, servicios, no recomendable,
-   frases, poesías, preguntas, publicaciones con galería, avances, personajes, capítulos, canciones, enlaces,
-   lista de precios o medios de pago.
+3. Elige el **tipo de página**: libre (texto, fotos y videos), **formulario**, recomendaciones, productos, servicios,
+   no recomendable, frases, poesías, preguntas, publicaciones con galería, avances, personajes, capítulos, canciones,
+   enlaces, lista de precios o medios de pago.
 4. Guarda y agrega su contenido. Cuando quieras puedes cambiar el nombre, el tipo, la ubicación, el ícono, el orden
    o ocultarla, sin perder lo que cargaste.
+
+### Formularios: pedidos que llegan al panel
+
+El tipo de página **Formulario** crea una página con los campos que vos elijas. No hace falta tocar código:
+
+1. **Crear página nueva → tipo “Formulario”** → paso 3, **Campos del formulario**.
+2. Agregá los campos que quieras (hasta 24): texto corto, texto largo, email, teléfono, fecha o **desplegable**.
+   Cada uno con su etiqueta, si es obligatorio, un texto de ayuda y una aclaración opcional.
+3. El **desplegable** puede tomar solo tus servicios (los de la página Servicios de ese mismo sitio, se actualizan
+   solos) o una **lista propia** escrita a mano. En los dos casos podés activar la opción **“Otro (especificar)”**,
+   para que la persona escriba lo que necesita.
+4. Elegí el **texto del botón** y el **mensaje de gracias** que ve quien envía.
+5. Guardá. La página ya aparece en el menú y las respuestas llegan a **/admin → Formularios** (con el contador de
+   “sin leer”), donde podés marcarlas como leídas, abrir el email de contacto o borrarlas.
+
+Funciona igual en el **sitio principal y en cada subdominio**: cada uno tiene sus formularios y sus respuestas.
+Los envíos son privados (no se publican) y están protegidos con un campo trampa invisible y un límite de envíos por
+minuto, así que los robots no pueden llenarte la bandeja.
 
 ## 7. Redes sociales
 

@@ -4,6 +4,7 @@ import { ExternalLink, LayoutList, Trash2 } from "lucide-react";
 import { getAnySection, getCustomSections, getItem, getItems, getPageTexts, type Item } from "@/lib/data";
 import { itemCategories } from "@/lib/format";
 import { siteLabel } from "@/lib/hosts";
+import { cleanFormConfig, defaultFormConfig } from "@/lib/form-fields";
 import { describeCustomPage, getPageType, isGroupKey, newItemLabel } from "@/lib/sections";
 import { getCurrentSite } from "@/lib/site";
 import { getMlConfig } from "@/lib/mercadolibre";
@@ -47,6 +48,7 @@ function toValues(it: Item): ItemValues & { id: number } {
 }
 
 function toPageValues(it: Item, mainSite: boolean): CustomPageValues & { id: number } {
+  const form = cleanFormConfig(it.form);
   return {
     id: it.id,
     title: it.title,
@@ -63,6 +65,7 @@ function toPageValues(it: Item, mainSite: boolean): CustomPageValues & { id: num
     menuGroup: mainSite ? (isGroupKey(it.menuGroup) ? it.menuGroup : "mas") : it.menuGroup,
     icon: it.icon,
     published: it.published,
+    form: form.fields.length > 0 ? form : defaultFormConfig(),
   };
 }
 

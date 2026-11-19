@@ -24,6 +24,7 @@ import {
   SubNav,
 } from "../ui";
 import { Icon } from "../icons";
+import { FormView } from "./FormView";
 import { SectionBody, itemPath } from "./SectionView";
 
 export { itemPath };
@@ -84,6 +85,28 @@ export function SectionPage({
         )}
       </>
     ) : null;
+
+  // Página de tipo “Formulario”: no tiene lista de publicaciones, muestra los campos del panel
+  if (section.layout === "form") {
+    return (
+      <>
+        <PageHero
+          title={text.title}
+          intro={text.intro}
+          image={text.imageUrl}
+          icon={section.icon}
+          eyebrow={eyebrow ?? menuEyebrow(menu, section.key, settings.siteName)}
+          crumbs={menuCrumbs(menu, section.key)}
+        />
+        <SubNav tabs={tabs} current={section.key} />
+        <div className="container-x space-y-10 py-12">
+          {extra?.content ? <RichText text={extra.content} className="max-w-3xl text-lg text-zinc-300" /> : null}
+          {extra ? <FormView page={extra} section={section} admin={admin} /> : null}
+        </div>
+        {admin && extra ? <AdminFab href={`/admin/s/custom/${extra.id}`} label="Editar el formulario" /> : null}
+      </>
+    );
+  }
 
   return (
     <>

@@ -14,8 +14,9 @@ import { ensureLegacySubsites } from "./sites";
  *  v8: los robots que solo entrenan modelos de IA quedan bloqueados (los asistentes siguen entrando).
  *  v9: trucos de juegos (código del truco y para qué sirve).
  *  v10: comentarios privados de la página de opiniones.
+ *  v11: páginas de tipo “Formulario” con sus respuestas.
  */
-const SCHEMA_VERSION = "10";
+const SCHEMA_VERSION = "11";
 
 const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS "sites" (
@@ -53,6 +54,7 @@ CREATE TABLE IF NOT EXISTS "items" (
   "menu_group" varchar(60) DEFAULT '' NOT NULL,
   "icon" varchar(32) DEFAULT '' NOT NULL,
   "options" jsonb DEFAULT '{}'::jsonb NOT NULL,
+  "form" jsonb DEFAULT '{}'::jsonb NOT NULL,
   "featured" boolean DEFAULT false NOT NULL,
   "published" boolean DEFAULT true NOT NULL,
   "sort_order" integer DEFAULT 0 NOT NULL,
@@ -71,6 +73,7 @@ ALTER TABLE "items" ADD COLUMN IF NOT EXISTS "ml_type" varchar(10) DEFAULT '' NO
 ALTER TABLE "items" ADD COLUMN IF NOT EXISTS "ml_sync" boolean DEFAULT false NOT NULL;
 ALTER TABLE "items" ADD COLUMN IF NOT EXISTS "ml_info" jsonb DEFAULT '{}'::jsonb NOT NULL;
 ALTER TABLE "items" ADD COLUMN IF NOT EXISTS "options" jsonb DEFAULT '{}'::jsonb NOT NULL;
+ALTER TABLE "items" ADD COLUMN IF NOT EXISTS "form" jsonb DEFAULT '{}'::jsonb NOT NULL;
 ALTER TABLE "items" ADD COLUMN IF NOT EXISTS "code" text DEFAULT '' NOT NULL;
 ALTER TABLE "items" ADD COLUMN IF NOT EXISTS "purpose" text DEFAULT '' NOT NULL;
 UPDATE "items" SET "categories" = jsonb_build_array("category") WHERE "category" <> '' AND "categories" = '[]'::jsonb;
@@ -128,6 +131,19 @@ CREATE TABLE IF NOT EXISTS "media" (
 );
 ALTER TABLE "media" ADD COLUMN IF NOT EXISTS "url" text DEFAULT '' NOT NULL;
 ALTER TABLE "media" ALTER COLUMN "data" DROP NOT NULL;
+CREATE TABLE IF NOT EXISTS "form_submissions" (
+  "id" serial PRIMARY KEY NOT NULL,
+  "site" varchar(63) DEFAULT '' NOT NULL,
+  "form_id" integer NOT NULL,
+  "form_key" varchar(64) DEFAULT '' NOT NULL,
+  "page" text DEFAULT '' NOT NULL,
+  "answers" jsonb DEFAULT '[]'::jsonb NOT NULL,
+  "read" boolean DEFAULT false NOT NULL,
+  "created_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+ALTER TABLE "form_submissions" ADD COLUMN IF NOT EXISTS "read" boolean DEFAULT false NOT NULL;
+CREATE INDEX IF NOT EXISTS "form_submissions_site_idx" ON "form_submissions" ("site", "created_at");
+CREATE INDEX IF NOT EXISTS "form_submissions_form_idx" ON "form_submissions" ("form_id", "created_at");
 UPDATE "settings" SET "value" = replace("value", 'Jomer Works', 'Jomer Worrhis') WHERE "value" LIKE '%Jomer Works%';
 UPDATE "pages" SET
   "nav_label" = replace(replace("nav_label", 'Herje', 'Hereje'), 'herje', 'hereje'),

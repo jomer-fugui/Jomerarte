@@ -20,6 +20,7 @@ import {
   detailPageNodes,
   detailPath,
   hubPageNodes,
+  isoDate,
   itemDescription,
   itemImage,
   jsonLdGraph,
@@ -106,7 +107,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       path: detailPath(r.section.path, item),
       image: itemImage(d.base, item) ?? d.image,
       article: ARTICLE_LAYOUTS.includes(r.section.layout)
-        ? { publishedTime: item.createdAt.toISOString(), modifiedTime: item.updatedAt.toISOString() }
+        ? { publishedTime: isoDate(item.createdAt), modifiedTime: isoDate(item.updatedAt) }
         : undefined,
     });
   }
@@ -189,7 +190,7 @@ export default async function CatchAllPage({ params }: Props) {
         name: it.title,
         description: excerpt(it.subtitle || it.content, 300) || undefined,
         image: absUrl(seo.base, it.imageUrl),
-        dateModified: it.updatedAt.toISOString(),
+        dateModified: isoDate(it.updatedAt),
       }),
     ]);
     return (

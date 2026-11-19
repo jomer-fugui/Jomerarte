@@ -1,8 +1,23 @@
 import Link from "next/link";
-import { EyeOff, Globe, Image as ImageIcon, ListOrdered, Plus, Search, Settings, Sparkles, Star, Tag, Upload, type LucideIcon } from "lucide-react";
+import {
+  ClipboardList,
+  EyeOff,
+  Globe,
+  Image as ImageIcon,
+  ListOrdered,
+  Plus,
+  Search,
+  Settings,
+  Sparkles,
+  Star,
+  Tag,
+  Upload,
+  type LucideIcon,
+} from "lucide-react";
 import { getMenuModel, getSectionCounts, getSettings } from "@/lib/data";
 import { getMlConfig } from "@/lib/mercadolibre";
 import { countUnreadFeedback } from "@/lib/feedback";
+import { countUnreadSubmissions } from "@/lib/forms";
 import { getCurrentSite, getSiteSlugs } from "@/lib/site";
 import { Icon } from "@/components/icons";
 import { SubsiteDashboard } from "@/components/admin/SubsiteDashboard";
@@ -26,13 +41,14 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
   // Cada subdominio tiene su propio panel
   if (!site.isMain) return <SubsiteDashboard site={site} ok={ok} />;
 
-  const [counts, settings, menu, subsites, mlCfg, unread] = await Promise.all([
+  const [counts, settings, menu, subsites, mlCfg, unread, unreadForms] = await Promise.all([
     getSectionCounts(),
     getSettings(),
     getMenuModel(),
     getSiteSlugs(),
     getMlConfig(),
     countUnreadFeedback(site.slug),
+    countUnreadSubmissions(site.slug),
   ]);
   const noLogo = !settings.logoUrl && !settings.logoLightUrl;
 
@@ -72,6 +88,12 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
           icon={Star}
           title="Opiniones"
           text={unread > 0 ? `${unread} sin leer · reseñas de Google y comentarios` : "Reseñas de Google y comentarios privados"}
+        />
+        <QuickCard
+          href="/admin/formularios"
+          icon={ClipboardList}
+          title="Formularios"
+          text={unreadForms > 0 ? `${unreadForms} sin leer · envíos de los formularios` : "Envíos de las páginas con formulario"}
         />
         <QuickCard href="/admin/medios" icon={ImageIcon} title="Archivos subidos" text="Fotos, videos y audios" />
         <QuickCard

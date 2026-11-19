@@ -17,8 +17,10 @@ import {
   type GroupKey,
   type PageTypeKey,
 } from "@/lib/sections";
+import { EMPTY_FORM_CONFIG, defaultFormConfig, type FormConfig } from "@/lib/form-fields";
 import { cn } from "@/lib/format";
 import { Icon } from "../icons";
+import { FormFieldsEditor } from "./FormFieldsEditor";
 import { LinksEditor } from "./fields";
 import { GalleryInput, MediaInput } from "./MediaInput";
 import type { ItemLink } from "@/lib/links";
@@ -40,6 +42,8 @@ export type CustomPageValues = {
   menuGroup: string;
   icon: string;
   published: boolean;
+  /** Solo páginas de tipo Formulario */
+  form: FormConfig;
 };
 
 const EMPTY: CustomPageValues = {
@@ -57,6 +61,7 @@ const EMPTY: CustomPageValues = {
   menuGroup: "mas",
   icon: "",
   published: true,
+  form: { ...EMPTY_FORM_CONFIG, fields: [] },
 };
 
 const FORMAT_HINT =
@@ -110,7 +115,11 @@ export function CustomPageForm({
   const set = <K extends keyof CustomPageValues>(k: K, val: CustomPageValues[K]) => setV((p) => ({ ...p, [k]: val }));
 
   const type = getPageType(v.pageType);
+  const isForm = type.key === "form";
   const isList = type.key !== "page";
+  const nText = isForm ? 4 : 3;
+  const nMedia = isForm ? 5 : 4;
+  const nIcon = isForm ? 6 : 5;
   const slug = slugEdited ? v.slug : slugFromTitle(v.title);
   const base = isMain ? GROUP_BASE[isGroupKey(v.menuGroup) ? v.menuGroup : "mas"] : "";
 
@@ -127,6 +136,7 @@ export function CustomPageForm({
       <input type="hidden" name="icon" value={v.icon} />
       <input type="hidden" name="gallery" value={JSON.stringify(v.gallery)} />
       <input type="hidden" name="links" value={JSON.stringify(v.links)} />
+      {isForm && <input type="hidden" name="form" value={JSON.stringify(v.form)} />}
 
       {state?.error && (
         <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-200">{state.error}</div>
@@ -243,7 +253,11 @@ export function CustomPageForm({
                 type="button"
                 onClick={() => {
                   setTypeChosen(true);
-                  set("pageType", t.key);
+                  setV((p) => ({
+                    ...p,
+                    pageType: t.key,
+                    form: t.key === "form" && p.form.fields.length === 0 ? defaultFormConfig() : p.form,
+                  }));
                 }}
                 aria-pressed={active}
                 className={cn(
@@ -268,7 +282,13 @@ export function CustomPageForm({
             );
           })}
         </div>
-        {isList && (
+        {isForm && (
+          <p className="flex items-start gap-2 rounded-xl border border-white/10 bg-black/30 p-3 text-sm text-zinc-300">
+            <Info className="mt-0.5 h-4 w-4 shrink-0 text-accent-light" />
+            En el paso 3 elegís los campos del formulario y qué mensaje ve la persona al enviarlo.
+          </p>
+        )}
+        {isList && !isForm && (
           <p className="flex items-start gap-2 rounded-xl border border-white/10 bg-black/30 p-3 text-sm text-zinc-300">
             <Info className="mt-0.5 h-4 w-4 shrink-0 text-accent-light" />
             Después de guardar podrás agregar cada {type.itemLabel} con su foto, texto y enlace.
@@ -276,7 +296,17 @@ export function CustomPageForm({
         )}
       </Step>
 
-      <Step n={3} title="Textos e imagen">
+      {isForm && (
+        <Step
+          n={3}
+          title="Campos del formulario"
+          hint="Agregá, ordená y editá los campos. Los que son desplegables pueden tomar tus servicios o una lista propia."
+        >
+          <FormFieldsEditor value={v.form} onChange={(f) => set("form", f)} />
+        </Step>
+      )}
+
+      <Step n={nText} title="Textos e imagen">
         <div>
           <label className="label">Subtítulo o introducción</label>
           <textarea
@@ -294,7 +324,11 @@ export function CustomPageForm({
         </div>
         <div>
           <label className="label">
-            {isList ? "Texto adicional (opcional, se muestra antes de la lista)" : "Contenido de la página"}
+            {isForm
+              ? "Texto que se muestra arriba del formulario (opcional)"
+              : isList
+                ? "Texto adicional (opcional, se muestra antes de la lista)"
+                : "Contenido de la página"}
           </label>
           <textarea
             name="content"
@@ -307,7 +341,7 @@ export function CustomPageForm({
         </div>
       </Step>
 
-      <Step n={4} title="Fotos, video y botones" hint="Todo es opcional.">
+      <Step n={nMedia} title="Fotos, video y botones" hint="Todo es opcional.">
         <div>
           <label className="label">Galería de fotos y videos</label>
           <GalleryInput value={v.gallery} onChange={(g) => set("gallery", g)} />
@@ -350,7 +384,7 @@ export function CustomPageForm({
         </div>
       </Step>
 
-      <Step n={5} title="Ícono y visibilidad">
+      <Step n={nIcon} title="Ícono y visibilidad">
         <div>
           <span className="label">Ícono en el menú</span>
           <div className="flex flex-wrap gap-2">
@@ -398,7 +432,9 @@ export function CustomPageForm({
       </Step>
 
       <div className="flex flex-wrap gap-3">
-        <SubmitButton>{page ? "Guardar cambios" : isList ? "Crear página y agregar contenido" : "Crear página"}</SubmitButton>
+        <SubmitButton>
+          {page ? "Guardar cambios" : isForm ? "Crear página con formulario" : isList ? "Crear página y agregar contenido" : "Crear página"}
+        </SubmitButton>
         <Link href="/admin/s/custom" className="btn-ghost">
           Cancelar
         </Link>
