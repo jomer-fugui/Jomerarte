@@ -217,8 +217,34 @@ const loadAllPublished = cache(async (slug: string): Promise<Item[]> => {
     .limit(3000);
 });
 
-/** Un elemento al azar de una sección (la frase del día, la pregunta del día…). */
-const loadRandomItem = cache(async (slug: string, section: string): Promise<Item | undefined> => {
+/** Nombres de servicios del sitio: alimentan los desplegables de los formularios. */
+const loadServiceNames = cache(async (slug: string): Promise<string[]> => {
+  if (!isDatabaseConfigured()) return [];
+  try {
+    const main = await loadItems(slug, "servicios", {});
+    const names = main.map((i) => i.title.trim()).filter(Boolean);
+    if (names.length > 0) return names;
+    // En los subdominios los servicios son páginas propias de tipo “Servicios”
+    const customs = await loadCustomSections(slug);
+    const out: string[] = [];
+    for (const c of customs) {
+      if (c.def?.layout !== "services") continue;
+      const rows = await loadItems(slug, c.key, {});
+      for (const row of rows) if (row.title.trim()) out.push(row.title.trim());
+    }
+    return out;
+  } catch (err) {
+    console.error("[servicios]", err instanceof Error ? err.message : err);
+    return [];
+  }
+});
+
+/** Servicios del sitio actual (o del indicado), para los formularios. */
+export async function getServiceNames(site?: string): Promise<string[]> {
+  return loadServiceNames(site ?? (await currentSlug()));
+}
+
+/** Un elemento al azar de una sección (la frase del día, la pregunta del día…). */const loadRandomItem = cache(async (slug: string, section: string): Promise<Item | undefined> => {
   if (!isDatabaseConfigured()) return undefined;
   await ensureSeeded();
   const rows = await db

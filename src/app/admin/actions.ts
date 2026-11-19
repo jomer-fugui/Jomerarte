@@ -7,7 +7,7 @@ import { redirect } from "next/navigation";
 import { and, asc, desc, eq } from "drizzle-orm";
 import { del } from "@vercel/blob";
 import { db } from "@/db";
-import { feedback, items, media, pages, settings } from "@/db/schema";
+import { feedback, formSubmissions, items, media, pages, settings } from "@/db/schema";
 import {
   checkPassword,
   createSession,
@@ -18,6 +18,7 @@ import {
   setPassword,
 } from "@/lib/auth";
 import { getAnySection } from "@/lib/data";
+import { cleanFormConfig, EMPTY_FORM_CONFIG, defaultFormConfig, type FormConfig } from "@/lib/form-fields";
 import { DEFAULT_SETTINGS } from "@/lib/defaults";
 import { RESERVED_SUBDOMAINS, normalizeSubdomain } from "@/lib/hosts";
 import { detectPlatform } from "@/lib/platforms";
@@ -443,6 +444,17 @@ export async function saveCustomPageAction(_prev: FormState, formData: FormData)
   }
 
   const iconRaw = str(formData, "icon", 32);
+  // Definición del formulario (solo páginas de tipo “Formulario”): si el panel no la manda, no se toca
+  const rawForm = formData.get("form");
+  let form: FormConfig | undefined;
+  if (typeof rawForm === "string" && rawForm.trim()) {
+    try {
+      form = cleanFormConfig(JSON.parse(rawForm));
+      if (form.fields.length === 0) form = defaultFormConfig();
+    } catch {
+      form = { ...EMPTY_FORM_CONFIG, fields: [] };
+    }
+  }
   const values = {
     title,
     slug,
@@ -458,6 +470,7 @@ export async function saveCustomPageAction(_prev: FormState, formData: FormData)
     linkLabel: str(formData, "linkLabel", 200),
     links: parseLinks(formData),
     published: formData.get("published") === "on",
+    ...(pageType === "form" && form ? { form } : {}),
     updatedAt: new Date(),
   };
 
@@ -486,6 +499,7 @@ export async function saveCustomPageAction(_prev: FormState, formData: FormData)
   notifySearchEngines(site.slug, [path, "/"]);
   refresh();
   if (pageType === "page") redirect(`/admin/s/custom?ok=${id ? "updated" : "created"}`);
+  if (pageType === "form") redirect(`/admin/s/${customKey(savedId)}?ok=${id ? "pageUpdated" : "formCreated"}`);
   redirect(`/admin/s/${customKey(savedId)}?ok=${id ? "pageUpdated" : "pageCreated"}`);
 }
 
@@ -605,4 +619,24 @@ export async function deleteMediaAction(formData: FormData) {
     await db.delete(media).where(eq(media.id, id));
   }
   revalidatePath("/admin/medios");
+}
+
+/* ───────────── Formularios: respuestas de los visitantes (solo panel) */
+export async function toggleSubmissionReadAction(formData: FormData) {
+  await requireAdmin();
+  const id = Number(str(formData, "id", 20));
+  if (id) {
+    const [row] = await db.select({ read: formSubmissions.read }).from(formSubmissions).where(eq(formSubmissions.id, id)).limit(1);
+    if (row) await db.update(formSubmissions).set({ read: !row.read }).where(eq(formSubmissions.id, id));
+  }
+  const to = str(formData, "redirectTo", 200);
+  redirect(to.startsWith("/admin") ? to : "/admin/formularios");
+}
+
+export async function deleteSubmissionAction(formData: FormData) {
+  await requireAdmin();
+  const id = Number(str(formData, "id", 20));
+  if (id) await db.delete(formSubmissions).where(eq(formSubmissions.id, id));
+  const to = str(formData, "redirectTo", 200);
+  redirect(to.startsWith("/admin") ? to : "/admin/formularios");
 }

@@ -63,7 +63,11 @@ CPU ni cuentas que se pausan.
 ## Paso 3 · Crear la base de datos
 
 1. Dentro del proyecto: **+ New → Database → PostgreSQL**.
-2. Elegí **PostgreSQL 17** (es la versión de Neon; así el respaldo entra sin problemas).
+2. Elegí la **misma versión mayor que la de Neon**. Mirá la versión real en Neon (`pg_dump` la imprime: “server
+   version: **18.7**”) y usá esa imagen: si Neon está en 18, la imagen tiene que ser **`postgres:18-alpine`**.
+   Es importante: `pg_dump` **se niega** a exportar de un servidor más nuevo que el suyo
+   (`pg_dump: aborting because of server version mismatch`). Si la base ya la creaste en 17 y Neon está en 18,
+   lo más simple es recrearla ahora, antes de cargar datos.
 3. En la configuración ponele:
    - **Name:** `jomerarte-db`
    - **PostgreSQL User:** `jomer`
@@ -73,6 +77,16 @@ CPU ni cuentas que se pausan.
 5. Entrá al recurso y copiá la **PostgreSQL URL (Internal)**:
    `postgresql://jomer:CLAVE@jomerarte-db:5432/jomerarte`
    Esa dirección es interna de Docker: no se puede abrir desde afuera, y por eso es segura.
+
+> **Importante — agregale `?sslmode=disable`.** La imagen oficial de PostgreSQL no trae SSL activado y la app, cuando
+> el host no es `localhost` y no se le dice nada, **fuerza una conexión cifrada**. Resultado: `/api/health` devuelve
+> 500 y el despliegue se cae solo. La URL tiene que quedar así:
+>
+> ```
+> postgresql://jomer:CLAVE@jomerarte-db:5432/jomerarte?sslmode=disable
+> ```
+>
+> Para comprobarlo, en la **Terminal de la base**: `psql -U jomer -d jomerarte -c "show ssl;"` → tiene que decir `off`.
 
 ## Paso 4 · Crear la aplicación
 
@@ -91,7 +105,7 @@ En la aplicación → **Environment Variables**. Cargá una por una (botón *+ A
 
 | Variable | ¿Obligatoria? | Valor |
 |---|---|---|
-| `DATABASE_URL` | **Sí** | La *PostgreSQL URL (Internal)* del paso 3 |
+| `DATABASE_URL` | **Sí** | La *PostgreSQL URL (Internal)* del paso 3, **con `?sslmode=disable` al final** |
 | `SESSION_SECRET` | **Sí** | Texto largo y al azar (ver abajo cómo generarlo) |
 | `ADMIN_PASSWORD` | **Sí** | La contraseña con la que entrás al panel |
 | `NEXT_PUBLIC_SITE_URL` | **Sí** | `https://jomerarte.com` |
@@ -107,13 +121,20 @@ texto de 40 caracteres mezclando letras y números sirve.
 
 ## Paso 6 · Dominios y certificado
 
-1. En la app → **Configuration → Domains**, agregá (separados por coma):
+1. En la app → **Configuration → Domains**, agregá **un dominio por vez** (el botón *Add* abre un diálogo por cada
+   uno; no acepta listas separadas por comas). En cada diálogo:
 
-   ```
-   https://jomerarte.com,https://www.jomerarte.com,https://juegos.jomerarte.com,https://frases.jomerarte.com,https://cielinfier.jomerarte.com
-   ```
+   - **Protocol:** `https`
+   - **Domain:** solo el nombre, **sin `https://`** → `jomerarte.com`
+   - **Port:** `3000`
 
-   > Cada subdominio tiene que estar acá porque el sitio decide qué mostrar según el dominio.
+   Guardá y repetí con `www.jomerarte.com`, `juegos.jomerarte.com`, `frases.jomerarte.com` y `cielinfier.jomerarte.com`.
+
+   > **Ojo con los `www` de los subdominios** (`www.juegos.jomerarte.com` y compañía): si no vas a crear el DNS de
+   > esos nombres, **no los agregues**. Let's Encrypt falla para un dominio que no resuelve y puede trabar el
+   > certificado de los demás.
+   >
+   > Cada subdominio tiene que estar en la lista porque el sitio decide qué mostrar según el dominio.
 
 2. **En el DNS** (en Hostinger o en Cloudflare, donde tengas el dominio):
 
@@ -126,6 +147,14 @@ texto de 40 caracteres mezclando letras y números sirve.
    | A | `cielinfier` | IP del VPS |
    | A | `*` | IP del VPS (opcional: cubre cualquier subdominio futuro) |
 
+   > **Cómo se hace en Hostinger:** *Dominios → DNS / Nameservers*. Si el dominio ya tenía registros (por ejemplo un
+   > `CNAME www` o un `CNAME` de un subdominio apuntando a Vercel), **se editan**, no se agregan de nuevo: el panel
+   > rechaza dos registros con el mismo nombre (“El registro de recursos DNS no es válido o entra en conflicto”).
+   > Un `CNAME` solo puede apuntar a un nombre, nunca a una IP. Bajá el TTL a `300` mientras migrás.
+   >
+   > **No toques** los `TXT` de verificación de Google, el `SPF` ni los `MX`: son del correo. Y **no uses
+   > “Restablecer registros DNS”**: borra esos registros y deja la zona como al principio.
+
 3. Volvé a Coolify y tocá **Deploy**. Traefik pide solo los certificados (Let's Encrypt) y en un par de minutos
    `https://jomerarte.com` abre sin advertencias.
 4. Si usás Cloudflare con la nube naranja, mirá la sección **Cloudflare** más abajo (SSL en *Full (strict)*).
@@ -137,7 +166,20 @@ texto de 40 caracteres mezclando letras y números sirve.
    - `https://jomerarte.com/api/health` → tiene que devolver `{"ok":true}`
    - Abrí el sitio: se ve igual que en Vercel (por ahora con el contenido de ejemplo o vacío).
    - `https://jomerarte.com/admin` → entrá con `ADMIN_PASSWORD`.
-3. Si `/api/health` da error 500, es que `DATABASE_URL` está mal o la base no está corriendo.
+3. Si `/api/health` da error 500, es que `DATABASE_URL` está mal (revisá el `?sslmode=disable`) o la base no está corriendo.
+
+**Si el despliegue falla con “New container is unhealthy” y en los logs aparece `curl: not found` o
+`wget: can't connect to remote host: Connection refused`, el problema NO es la app.** Ese es el *healthcheck* que
+Coolify agrega por su cuenta (por defecto apunta al **puerto 80**, donde no hay nada escuchando) y además necesita
+`curl`, que la imagen `node:22-alpine` no trae. La imagen ya tiene su propio `HEALTHCHECK` con `node` contra
+`/api/health`, así que la solución es:
+
+1. App → **Healthcheck** → el botón de arriba a la derecha tiene que quedar en **“Enable”** (o sea: desactivado).
+   Cuando dice “Disable” es porque todavía está activo. No hay botón “Save”: el botón es el interruptor.
+2. **Deploy** otra vez.
+
+En los logs tiene que aparecer `Using the custom healthcheck from the Dockerfile` y después
+`Healthcheck status: "healthy"`.
 
 ## Paso 8 · Traer tu contenido desde Neon
 
@@ -147,7 +189,11 @@ Hay dos caminos. **Usá el A** salvo que no puedas.
 
 Se corre dentro del contenedor de la base, que ya trae las herramientas. En Coolify:
 
-1. Abrí el recurso de PostgreSQL → pestaña **Terminal** (o *Execute Command*).
+1. Abrí el recurso de **PostgreSQL** → pestaña **Terminal**. **No** la de la aplicación: ahí `pg_dump` no existe
+   (`sh: pg_dump: not found`) porque la imagen de Node no trae el cliente de PostgreSQL.
+2. Fijate que la versión coincida con la de Neon: si el dump dice
+   `pg_dump: error: aborting because of server version mismatch` / `server version: 18.7; pg_dump version: 17.12`,
+   la base del VPS es más vieja que Neon y hay que recrearla con la imagen de la misma versión (ver paso 3).
 2. Pegá esto, cambiando la URL de Neon por la tuya:
 
    ```bash
@@ -325,7 +371,13 @@ Levanta el sitio y una base Postgres vacía, igual que en el VPS. Para entrar al
 | Síntoma | Causa habitual | Solución |
 |---|---|---|
 | El deploy falla en “npm ci” | Falta `package-lock.json` en la rama | Subir el archivo o cambiar a `npm install` |
-| `/api/health` da 500 | `DATABASE_URL` mal o base apagada | Copiar de nuevo la URL interna |
+| `/api/health` da 500 | `DATABASE_URL` mal, sin `?sslmode=disable`, o base apagada | Copiar de nuevo la URL interna y agregar `?sslmode=disable` |
+| Deploy: “New container is unhealthy” y `curl: not found` | Es el healthcheck de Coolify (puerto 80, sin `curl`), no la app | Healthcheck → desactivar → Deploy (la imagen tiene el suyo) |
+| Terminal de la app: `sh: pg_dump: not found` | `pg_dump` está en el contenedor de la base, no en el de la app | Usar la Terminal de `jomerarte-db` |
+| `pg_dump: aborting because of server version mismatch` | La base del VPS es más vieja que Neon | Recrear la base con la imagen de la misma versión mayor |
+| El panel rechaza un dominio | Se cargó con `https://` o en una lista con comas | Un dominio por diálogo, solo el nombre, puerto 3000 |
+| Hostinger: “El registro … entra en conflicto” | Ya existe un registro con ese nombre (CNAME a Vercel) | Editar el existente en vez de agregar uno nuevo |
+| Después de restaurar, el sitio da 503 | La app quedó detenida | **Start** (no hace falta volver a compilar) |
 | El panel dice contraseña incorrecta | `ADMIN_PASSWORD` distinto al que usabas | Cambiarla y volver a desplegar |
 | Página en bucle de redirecciones | Cloudflare en *Flexible* | Poner *Full (strict)* |
 | “id repetido” al crear contenido | Faltó el `setval` | Correr el bloque del Paso 8-B |

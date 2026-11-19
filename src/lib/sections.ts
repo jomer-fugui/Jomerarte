@@ -38,6 +38,7 @@ export type Layout =
   | "cheats"
   | "files"
   | "reviews"
+  | "form"
   | "custom";
 
 export type GroupKey =
@@ -981,6 +982,15 @@ export const PAGE_TYPES: PageTypeDef[] = [
     description: "Texto con formato, imagen, galería de fotos y videos y un botón. Ideal para Contacto, Sobre mí o Trabajos realizados.",
     icon: "file",
     itemLabel: "",
+    fields: {},
+  },
+  {
+    key: "form",
+    label: "Formulario",
+    description:
+      "Una página con un formulario hecho a tu medida: elegís los campos (texto, email, teléfono, desplegable de servicios, fecha) y las respuestas te llegan al panel. Sirve igual en el sitio principal y en los subdominios.",
+    icon: "chat",
+    itemLabel: "respuesta",
     fields: {},
   },
   {

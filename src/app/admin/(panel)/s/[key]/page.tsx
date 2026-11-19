@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import {
   ArrowDown,
   ArrowUp,
+  ClipboardList,
   ExternalLink,
   Eye,
   EyeOff,
@@ -35,6 +36,7 @@ const OK: Record<string, string> = {
   page: "Textos de la página guardados.",
   pageCreated: "¡Página creada! Ya aparece en el menú. Ahora agrega su contenido con el botón “Agregar”.",
   pageUpdated: "Página guardada.",
+  formCreated: "¡Formulario creado! Ya aparece en el menú. Revisá los campos con “Editar el formulario” y las respuestas van a llegar acá abajo.",
   trucos: "Trucos importados. Ya se ven en la página.",
   categorias: "Orden y estilo de las categorías guardados.",
 };
@@ -81,6 +83,8 @@ export default async function AdminSectionPage({
   const isFixed = Boolean(staticDef) && !isCustomList;
   /** La página de opiniones no tiene publicaciones: se arma con Google y los comentarios privados */
   const isReviews = section?.layout === "reviews";
+  /** Página de tipo “Formulario”: no tiene lista, se configura en el editor de la página */
+  const isForm = section?.layout === "form";
   const fixedGroup = isFixed ? findMenuGroup(menu, key) : null;
   // En el sitio principal, el orden de las páginas nuevas se cambia en “Menú y orden” (junto con las predeterminadas)
   const canReorder = !(isCustomList && site.isMain);
@@ -120,7 +124,7 @@ export default async function AdminSectionPage({
               <Upload className="h-4 w-4" /> {section.layout === "cheats" ? "Importar trucos" : "Importar archivos"}
             </Link>
           )}
-          {section && !isReviews && (
+          {section && !isReviews && !isForm && (
             <Link href={addHref} className="btn-primary">
               <Plus className="h-4 w-4" /> {isCustomList ? "Crear página" : `Agregar ${section.itemLabel}`}
             </Link>
@@ -208,6 +212,37 @@ export default async function AdminSectionPage({
         </section>
       )}
 
+      {isForm && custom && (
+        <section className="card space-y-4 p-5">
+          <div>
+            <p className="font-display text-lg font-bold tracking-wide text-white uppercase">Cómo funciona este formulario</p>
+            <p className="mt-1 text-sm text-zinc-400">
+              Los campos se editan en la configuración de la página. Todo lo que completen los visitantes llega a
+              Formularios y queda solo para vos: no se publica en el sitio.
+            </p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Link href={`/admin/s/custom/${custom.item.id}`} className="card card-hover flex items-center gap-3 p-4 text-sm text-zinc-300">
+              <Settings2 className="h-5 w-5 shrink-0 text-accent-light" />
+              <span>
+                <strong className="block text-white">Editar el formulario</strong>
+                Campos, campos obligatorios, desplegable de servicios y mensajes
+              </span>
+            </Link>
+            <Link
+              href={`/admin/formularios?f=${custom.key}`}
+              className="card card-hover flex items-center gap-3 p-4 text-sm text-zinc-300"
+            >
+              <ClipboardList className="h-5 w-5 shrink-0 text-accent-light" />
+              <span>
+                <strong className="block text-white">Ver las respuestas</strong>
+                Todo lo que enviaron los visitantes
+              </span>
+            </Link>
+          </div>
+        </section>
+      )}
+
       {section?.layout === "products" && (
         <Link href="/admin/mercadolibre" className="card card-hover flex flex-wrap items-center gap-3 p-4 text-sm text-zinc-300">
           <span className="rounded bg-[#FFE600] px-1.5 py-0.5 text-[10px] font-extrabold text-[#2D3277]">ML</span>
@@ -223,7 +258,7 @@ export default async function AdminSectionPage({
         <CategorySettings sectionKey={key} site={site.slug} categories={catList} options={text?.options ?? {}} />
       )}
 
-      {section && !isReviews && (
+      {section && !isReviews && !isForm && (
         <section className="card overflow-hidden">
           {list.length === 0 ? (
             <div className="p-10 text-center text-zinc-400">

@@ -11,6 +11,7 @@ import {
   timestamp,
   varchar,
 } from "drizzle-orm/pg-core";
+import type { FormAnswer, FormConfig } from "@/lib/form-fields";
 import type { ItemLink } from "@/lib/links";
 import type { MlInfo } from "@/lib/ml-ref";
 import type { PageOptions } from "@/lib/sections";
@@ -69,6 +70,8 @@ export const items = pgTable(
     icon: varchar("icon", { length: 32 }).notNull().default(""),
     /** Solo páginas personalizadas: orden y estilo de sus categorías */
     options: jsonb("options").$type<PageOptions>().notNull().default({}),
+    /** Solo páginas de tipo “Formulario”: campos que se muestran y mensajes de respuesta */
+    form: jsonb("form").$type<Partial<FormConfig>>().notNull().default({}),
     featured: boolean("featured").notNull().default(false),
     published: boolean("published").notNull().default(true),
     sortOrder: integer("sort_order").notNull().default(0),
@@ -143,3 +146,27 @@ export const media = pgTable("media", {
   data: bytea("data"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+/**
+ * Respuestas de las páginas de tipo “Formulario”. Son privadas: se leen solo en el panel.
+ * `answers` guarda los pares etiqueta / valor tal como estaban en ese momento, así una
+ * respuesta vieja se sigue leyendo bien aunque después cambien los campos.
+ */
+export const formSubmissions = pgTable(
+  "form_submissions",
+  {
+    id: serial("id").primaryKey(),
+    /** "" = sitio principal; si no, el subdominio */
+    site: varchar("site", { length: 63 }).notNull().default(""),
+    /** Número del registro de la página (items.id) */
+    formId: integer("form_id").notNull(),
+    /** Clave de la página (c12), para no depender del número */
+    formKey: varchar("form_key", { length: 64 }).notNull().default(""),
+    /** Dirección desde la que se envió (ej: /Contacto) */
+    page: text("page").notNull().default(""),
+    answers: jsonb("answers").$type<FormAnswer[]>().notNull().default([]),
+    read: boolean("read").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("form_submissions_site_idx").on(t.site, t.createdAt), index("form_submissions_form_idx").on(t.formId, t.createdAt)],
+);

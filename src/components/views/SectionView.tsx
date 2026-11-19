@@ -156,6 +156,10 @@ export function SectionBody(props: ViewProps) {
   if (section.layout === "reviews") {
     return <ReviewsView settings={props.settings} admin={admin} path={section.path} />;
   }
+  // Los formularios se muestran completos en la página (SectionPage), no hay lista que armar
+  if (section.layout === "form") {
+    return null;
+  }
   if (items.length === 0) {
     return <EmptyState label={section.itemLabel} adminHref={admin ? `/admin/s/${section.key}/nuevo` : undefined} />;
   }
